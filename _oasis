@@ -1,0 +1,43 @@
+OASISFormat: 0.4
+Name:        dropbox
+Version:     0.1
+Synopsis:    Binding to the Dropbox Remote API
+Description: Pure OCaml library to access Dropbox.  Lwt and Async backends
+  are supported.  In particular, this library can be used from a
+  mirage unikernel.
+Authors:     Christophe Troestler <Christophe.Troestler@umons.ac.be>
+Maintainers: Christophe Troestler <Christophe.Troestler@umons.ac.be>
+License:     LGPL-3.0 with OCaml linking exception
+Homepage:    https://github.com/Chris00/ocaml-docker
+Plugins:     META (0.4), StdFiles (0.4)
+BuildTools:  ocamlbuild
+
+
+Library "dropbox"
+  Path:    src
+  Modules: Dropbox, Dropbox_t
+  InternalModules: Dropbox_j
+  BuildDepends: bytes, cohttp.lwt-core, lwt, atdgen
+
+Library "dropbox_lwt_unix"
+  Path:          src
+  Modules:       Dropbox_lwt_unix
+  BuildDepends:  dropbox, cohttp.lwt
+  FindlibParent: dropbox
+  # Use the same sub-name as cohttp
+  FindlibName:   lwt
+
+
+Executable "info"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       info.ml
+  BuildDepends: dropbox.lwt
+  Install:      false
+  CompiledObject: best
+
+
+SourceRepository trunk
+  Type:       git
+  Location:   https://github.com/Chris00/ocaml-dropbox.git
+  Browser:    https://github.com/Chris00/ocaml-dropbox

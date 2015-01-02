@@ -1,0 +1,6 @@
+src/dropbox_*.ml*
+_build/
+*.native
+*.byte
+setup.*
+run.conf

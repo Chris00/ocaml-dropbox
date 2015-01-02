@@ -1,0 +1,32 @@
+(* 								-*-tuareg-*- *)
+
+type error_description = { ~error: string;
+                           ~error_description: string }
+
+type token = { access_token: string;
+               (* token_type: string; (* always "bearer" *) *)
+             }
+
+type name_details = { familiar_name: string;
+                      given_name: string;
+                      surname: string }
+
+type team = { name: string;
+              team_id: int }
+
+type quota_info = { shared: int;
+                    quota: int;
+                    normal: int }
+type uri = string wrap
+           <ocaml t="Uri.t" wrap="Uri.of_string" unwrap="Uri.to_string">
+
+type info = { uid: int;
+              display_name: string;
+              ~email_verified: bool  <ocaml default="false"> ;
+              name_details: name_details;
+              referral_link: uri;
+              ~country: string;
+              locale: string;
+              is_paired: bool;
+              team: team nullable;
+              quota_info: quota_info }
