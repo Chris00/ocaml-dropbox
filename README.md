@@ -20,3 +20,12 @@ The easiest way to install these libraries is using
 [opam](http://opam.ocaml.org/):
 
     opam install lwt ssl cohttp uri atdgen
+
+
+Test this library
+-----------------
+
+Go to [Dropbox App Console](https://www.dropbox.com/developers/apps),
+create a new app, and generate an access token.  Create a file
+`run.conf` with `TOKEN=⟨your token⟩`.  Then you can use `./run pgm
+args` where `pgm` is one of the tests.
