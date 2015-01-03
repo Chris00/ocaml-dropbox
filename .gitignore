@@ -1,4 +1,5 @@
-src/dropbox_*.ml*
+src/dropbox_t.ml*
+src/dropbox_j.ml*
 _build/
 *.native
 *.byte

@@ -32,12 +32,31 @@ val string_of_error : error -> string
 
 exception Error of error
 
+(** Date representation. *)
 module Date : sig
   type t = Dropbox_date.t
 
+  (** Day of week. *)
+  type wday = Dropbox_date.wday
+            = Sun | Mon | Tue | Wed | Thu | Fri | Sat
+
+  (** Month. *)
+  type month
+    = Dropbox_date.month
+    = Jan | Feb | Mar | Apr | May | Jun | Jul | Aug | Sep | Oct | Nov | Dec
+
+  val day : t -> int      (** Day of the month (1-31). *)
+  val month : t -> month  (** Month *)
+  val year : t -> int     (** 4 digits year *)
+  val hour : t -> int     (** Hour *)
+  val min : t -> int      (** Minutes *)
+  val sec : t -> int      (** Seconds *)
+  val wday : t -> wday    (** Day of week *)
+
+  val to_string : t -> string
 end
 
-
+(** Dropbox API. *)
 module type S = sig
 
   (** {{:http://oauth.net/}OAuth 2.0} authentication. *)
@@ -179,7 +198,7 @@ module type S = sig
       }
 
   val info : ?locale: string -> t -> info Lwt.t
-  (** [info ()] return the information about the user's account.
+  (** [info t] return the information about the user's account.
 
       @param locale Specify language settings for user error messages
       and other language specific text.  See
@@ -229,7 +248,7 @@ module type S = sig
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
-  (** [get_file name] return the metadata for the file and a stream of
+  (** [get_file t name] return the metadata for the file and a stream of
       its content.  [None] indicates that the file does not exists.
 
       @param start The first byte of the file to download.  A negative
