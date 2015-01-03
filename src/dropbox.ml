@@ -3,6 +3,7 @@
 open Printf
 open Lwt
 module Json = Dropbox_j
+module Date = Dropbox_date
 
 (* Error handling
  ***********************************************************************)
@@ -15,7 +16,6 @@ type error =
   | Invalid_arg of error_description
   | Invalid_token of error_description
   | Invalid_oauth of error_description
-  | File_not_found of error_description
   | Too_many_requests of error_description
   | Try_later of int option * error_description
   | Quota_exceeded of error_description
@@ -29,8 +29,6 @@ let string_of_error = function
      "Invalid_token " ^ Json.string_of_error_description e
   | Invalid_oauth e ->
      "Invalid_oauth " ^ Json.string_of_error_description e
-  | File_not_found e ->
-     "File_not_found " ^ Json.string_of_error_description e
   | Too_many_requests e ->
      "Too_many_requests " ^ Json.string_of_error_description e
   | Try_later (sec, e) ->
@@ -55,12 +53,11 @@ let fail_error body f =
   let e = Json.error_description_of_string body in
   fail(Error(f e))
 
-let body_of_call (rq, body) =
+let check_errors_k k ((rq, body) as r) =
   match rq.Cohttp.Response.status with
   | `Bad_request -> fail_error body (fun e -> Invalid_arg e)
   | `Unauthorized -> fail_error body (fun e -> Invalid_token e)
   | `Forbidden -> fail_error body (fun e -> Invalid_oauth e)
-  | `Not_found -> fail_error body (fun e -> File_not_found e)
   | `Too_many_requests -> fail_error body (fun e -> Too_many_requests e)
   | `Service_unavailable ->
      (match Cohttp.(Header.get rq.Response.headers "retry-after") with
@@ -73,12 +70,16 @@ let body_of_call (rq, body) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
-  | st ->
-     let st = Cohttp.Code.code_of_status st in
-     if Cohttp.Code.is_error st then
-       fail_error body (fun e -> Server_error(st, e))
-     else
-       return(body)
+  | _ -> k r
+
+let check_errors =
+  let std_err ((rq, body) as r) =
+    let st = Cohttp.Code.code_of_status rq.Cohttp.Response.status  in
+    if Cohttp.Code.is_error st then
+      fail_error body (fun e -> Server_error(st, e))
+    else
+       return(r) in
+  check_errors_k std_err
 
 
 (* Signature & Functor
@@ -136,6 +137,25 @@ module type S = sig
                 quota_info: quota_info }
 
   val info : ?locale: string -> t -> info Lwt.t
+
+  type metadata = {
+      size: string;
+      bytes: int;
+      mime_type: string;
+      path: string;
+      is_dir: bool;
+      is_deleted: bool;
+      rev: string;
+      hash: string;
+      thumb_exists: bool;
+      icon: string;
+      modified: Date.t;
+      client_mtime: Date.t;
+      root: [ `Dropbox | `App_folder ]
+    }
+
+  val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
+                 string -> (metadata * string Lwt_stream.t) option Lwt.t
 
 end
 
@@ -200,8 +220,8 @@ module Make(Client: Cohttp_lwt.Client) = struct
         | None -> q
         | Some u -> ("redirect_uri", [Uri.to_string u]) :: q in
       Client.post (Uri.with_query token_uri q) >>=
-      body_of_call >>=
-      Cohttp_lwt_body.to_string >>= fun body ->
+      check_errors >>= fun (_, body) ->
+      Cohttp_lwt_body.to_string body >>= fun body ->
       return((Json.token_of_string body).Json.access_token)
   end
 
@@ -213,11 +233,12 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let session token = token
 
-  let http_call t meth uri =
+  let headers t =
     let bearer = "Bearer " ^ (token t) in
-    let headers = Cohttp.Header.init_with "Authorization" bearer in
-    Client.call ~headers meth uri
-    >>= body_of_call
+    Cohttp.Header.init_with "Authorization" bearer
+
+  let http_call t meth uri =
+    Client.call ~headers:(headers t) meth uri
 
   let info_uri = Uri.of_string "https://api.dropbox.com/1/account/info"
 
@@ -225,9 +246,44 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = match locale with
       | None -> info_uri
       | Some l -> Uri.with_query info_uri ["locale", [l]] in
-    http_call t `GET u
-    >>= Cohttp_lwt_body.to_string >>= fun body ->
+    http_call t `GET u >>= check_errors >>= fun (_, body) ->
+    Cohttp_lwt_body.to_string body >>= fun body ->
     return(Json.info_of_string body)
 
 
+  let stream_of_file (r, body) =
+    if r.Cohttp.Response.status = `Not_found then
+      return None
+    else (
+      (* Extract content metadata from the header *)
+      match Cohttp.(Header.get r.Response.headers "x-dropbox-metadata") with
+      | Some h ->
+         let metadata = Json.metadata_of_string h in
+         return(Some(metadata, Cohttp_lwt_body.to_stream body))
+      | None ->
+         (* Should not happen *)
+         let msg = {
+             error = "x-dropbox-metadata";
+             error_description = "Missing x-dropbox-metadata header" } in
+         fail(Error(Server_error(500, msg)))
+    )
+
+  let get_file t ?rev ?start ?len fn =
+    let headers = headers t in
+    let headers = match start, len with
+      | Some s, Some l ->
+         let range = string_of_int s ^ "-" ^ string_of_int(s + l - 1) in
+         Cohttp.Header.add headers "Range" ("bytes=" ^ range)
+      | Some s, None ->
+         let range = string_of_int s ^ "-" in
+         Cohttp.Header.add headers "Range" ("bytes=" ^ range)
+      | None, Some l ->
+         Cohttp.Header.add headers "Range" ("bytes=-" ^ string_of_int l)
+      | None, None -> headers in
+    let u =
+      Uri.of_string("https://api-content.dropbox.com/1/files/auto/" ^ fn) in
+    let u = match rev with None -> u
+                         | Some r -> Uri.with_query u ["rev", [r]] in
+    Client.call ~headers `GET u
+    >>= check_errors_k stream_of_file
 end

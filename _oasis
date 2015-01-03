@@ -16,7 +16,7 @@ BuildTools:  ocamlbuild
 Library "dropbox"
   Path:    src
   Modules: Dropbox, Dropbox_t
-  InternalModules: Dropbox_j
+  InternalModules: Dropbox_j, Dropbox_date
   BuildDepends: bytes, cohttp.lwt-core, lwt, atdgen
 
 Library "dropbox_lwt_unix"
@@ -33,6 +33,14 @@ Executable "info"
   Path:         tests
   MainIs:       info.ml
   BuildDepends: dropbox.lwt
+  Install:      false
+  CompiledObject: best
+
+Executable "get_file"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       get_file.ml
+  BuildDepends: dropbox.lwt, unix
   Install:      false
   CompiledObject: best
 

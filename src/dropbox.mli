@@ -15,8 +15,6 @@ type error =
   (** Bad OAuth request (wrong consumer key, bad nonce, expired
       timestamp...). Unfortunately, re-authenticating the user won't
       help here. *)
-  | File_not_found of error_description
-  (** File or folder not found at the specified path. *)
   | Too_many_requests of error_description
   (** Your app is making too many requests and is being rate limited.
       [Too_many_requests] can trigger on a per-app or per-user
@@ -33,6 +31,11 @@ type error =
 val string_of_error : error -> string
 
 exception Error of error
+
+module Date : sig
+  type t
+
+end
 
 
 module type S = sig
@@ -183,6 +186,28 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.  *)
 
+  type metadata = {
+      size: string;
+      (** A human-readable description of the file size (translated by
+          locale). *)
+      bytes: int;
+      mime_type: string;
+      path: string;
+      is_dir: bool;
+      is_deleted: bool;
+      rev: string;
+      hash: string;
+      thumb_exists: bool;
+      icon: string;
+      modified: Date.t;
+      client_mtime: Date.t;
+      root: [ `Dropbox | `App_folder ];
+    }
+
+  val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
+                 string -> (metadata * string Lwt_stream.t) option Lwt.t
+
+  ;;
 end
 
 module Make(Client: Cohttp_lwt.Client) : S

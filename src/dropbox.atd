@@ -30,3 +30,30 @@ type info = { uid: int;
               is_paired: bool;
               team: team nullable;
               quota_info: quota_info }
+
+type date = string wrap
+            <ocaml t="Dropbox_date.t"
+                   wrap="Dropbox_date.of_string"
+                   unwrap="Dropbox_date.to_string" >
+
+type root = [
+  | Dropbox     <json name="dropbox">
+  | App_folder  <json name="app_folder">
+  ]
+
+type metadata = { size: string;
+                  bytes: int;
+                  ~mime_type: string;
+                  path: string;
+                  is_dir: bool;
+                  ~is_deleted: bool <ocaml default="false"> ;
+                  rev: string;
+                  ~hash: string;
+                  thumb_exists: bool;
+                  (* photo_info; *)
+                  (* video_info; *)
+                  icon: string;
+                  modified: date;
+                  client_mtime: date;
+                  root: root;
+                }
