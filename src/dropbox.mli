@@ -190,22 +190,53 @@ module type S = sig
       size: string;
       (** A human-readable description of the file size (translated by
           locale). *)
-      bytes: int;
+      bytes: int;      (** The file size in bytes. *)
       mime_type: string;
-      path: string;
-      is_dir: bool;
-      is_deleted: bool;
+      path: string;    (** Returns the canonical path to the file or folder. *)
+      is_dir: bool;    (** Whether the given entry is a folder or not. *)
+      is_deleted: bool; (** Whether the given entry is deleted.  (Only
+                            interesting if deleted files are returned.)  *)
       rev: string;
+      (** A unique identifier for the current revision of a file.  This
+          field is the same [rev] as elsewhere in the API and can be
+          used to detect changes and avoid conflicts. *)
       hash: string;
+      (** A folder's hash is useful for indicating changes to the
+          folder's contents in later calls to {!metadata}.  This is
+          roughly the folder equivalent to a file's [rev].  (Is [""]
+          for a file.) *)
       thumb_exists: bool;
+      (** True if the file is an image that can be converted to a
+          thumbnail via the {!thumbnails} call. *)
       icon: string;
+      (** The name of the icon used to illustrate the file type in Dropbox's
+          {{:https://www.dropbox.com/static/images/dropbox-api-icons.zip}icon
+          library}. *)
       modified: Date.t;
+      (** The last time the file was modified on Dropbox (not included
+          for the root folder).  *)
       client_mtime: Date.t;
+      (** For files, this is the modification time set by the desktop
+          client when the file was added to Dropbox.  Since this time
+          is not verified (the Dropbox server stores whatever the
+          desktop client sends up), this should only be used for
+          display purposes (such as sorting) and not, for example, to
+          determine if a file has changed or not. *)
       root: [ `Dropbox | `App_folder ];
+      (** The root or top-level folder depending on your access
+          level. All paths returned are relative to this root level. *)
     }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
+  (** [get_file name] return the metadata for the file and a stream of
+      its content.  [None] indicates that the file does not exists.
+
+      @param start The first byte of the file to download.  Default: [0].
+      @param len The number of bytes to download.  If [start] is not set,
+        the last [len] bytes of the file are downloaded.  Default: download
+        the entire file (or everything after the position [start],
+        including [start]). *)
 
   ;;
 end

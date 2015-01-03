@@ -4,3 +4,4 @@ _build/
 *.byte
 setup.*
 run.conf
+API.docdir

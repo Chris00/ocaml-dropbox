@@ -15,7 +15,7 @@ BuildTools:  ocamlbuild
 
 Library "dropbox"
   Path:    src
-  Modules: Dropbox, Dropbox_t, Dropbox_date
+  Modules: Dropbox, Dropbox_date, Dropbox_t
   InternalModules: Dropbox_j
   BuildDepends: bytes, cohttp.lwt-core, lwt, atdgen
 
@@ -44,6 +44,14 @@ Executable "get_file"
   Install:      false
   CompiledObject: best
 
+
+Document API
+  Title:           API reference for Dropbox
+  Type:            OCamlbuild (0.4)
+  InstallDir:      $docdir/api
+  BuildTools:      ocamldoc, ocamlbuild
+  XOCamlbuildPath: src
+  XOCamlbuildLibraries: dropbox, dropbox.lwt
 
 SourceRepository trunk
   Type:       git
