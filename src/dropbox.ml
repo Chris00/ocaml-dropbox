@@ -81,6 +81,18 @@ let check_errors =
        return(r) in
   check_errors_k std_err
 
+let check_errors_404 f =
+  let std_err ((rq, body) as r) =
+    if rq.Cohttp.Response.status = `Not_found then
+      return None
+    else
+      let st = Cohttp.Code.code_of_status rq.Cohttp.Response.status in
+      if Cohttp.Code.is_error st then
+        fail_error body (fun e -> Server_error(st, e))
+      else
+        f r in
+  check_errors_k std_err
+
 
 (* Signature & Functor
  ***********************************************************************)
@@ -237,36 +249,29 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let bearer = "Bearer " ^ (token t) in
     Cohttp.Header.init_with "Authorization" bearer
 
-  let http_call t meth uri =
-    Client.call ~headers:(headers t) meth uri
-
   let info_uri = Uri.of_string "https://api.dropbox.com/1/account/info"
 
   let info ?locale t =
     let u = match locale with
       | None -> info_uri
       | Some l -> Uri.with_query info_uri ["locale", [l]] in
-    http_call t `GET u >>= check_errors >>= fun (_, body) ->
+    Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
     Cohttp_lwt_body.to_string body >>= fun body ->
     return(Json.info_of_string body)
 
 
   let stream_of_file (r, body) =
-    if r.Cohttp.Response.status = `Not_found then
-      return None
-    else (
-      (* Extract content metadata from the header *)
-      match Cohttp.(Header.get r.Response.headers "x-dropbox-metadata") with
-      | Some h ->
-         let metadata = Json.metadata_of_string h in
-         return(Some(metadata, Cohttp_lwt_body.to_stream body))
-      | None ->
-         (* Should not happen *)
-         let msg = {
-             error = "x-dropbox-metadata";
-             error_description = "Missing x-dropbox-metadata header" } in
-         fail(Error(Server_error(500, msg)))
-    )
+    (* Extract content metadata from the header *)
+    match Cohttp.(Header.get r.Response.headers "x-dropbox-metadata") with
+    | Some h ->
+       let metadata = Json.metadata_of_string h in
+       return(Some(metadata, Cohttp_lwt_body.to_stream body))
+    | None ->
+       (* Should not happen *)
+       let msg = {
+           error = "x-dropbox-metadata";
+           error_description = "Missing x-dropbox-metadata header" } in
+       fail(Error(Server_error(500, msg)))
 
   let get_file t ?rev ?start ?len fn =
     let headers = headers t in
@@ -284,6 +289,6 @@ module Make(Client: Cohttp_lwt.Client) = struct
       Uri.of_string("https://api-content.dropbox.com/1/files/auto/" ^ fn) in
     let u = match rev with None -> u
                          | Some r -> Uri.with_query u ["rev", [r]] in
-    Client.call ~headers `GET u
-    >>= check_errors_k stream_of_file
+    Client.get ~headers u
+    >>= check_errors_404 stream_of_file
 end
