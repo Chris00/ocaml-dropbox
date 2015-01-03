@@ -232,11 +232,13 @@ module type S = sig
   (** [get_file name] return the metadata for the file and a stream of
       its content.  [None] indicates that the file does not exists.
 
-      @param start The first byte of the file to download.  Default: [0].
+      @param start The first byte of the file to download.  A negative
+        number is interpreted as [0].  Default: [0].
       @param len The number of bytes to download.  If [start] is not set,
         the last [len] bytes of the file are downloaded.  Default: download
         the entire file (or everything after the position [start],
-        including [start]). *)
+        including [start]).  If [start <= 0], the metadata will be present
+        but the stream will be empty. *)
 
   ;;
 end

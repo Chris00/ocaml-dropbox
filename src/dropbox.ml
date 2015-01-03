@@ -260,12 +260,12 @@ module Make(Client: Cohttp_lwt.Client) = struct
     return(Json.info_of_string body)
 
 
-  let stream_of_file (r, body) =
+  let get_metadata k (r, body) =
     (* Extract content metadata from the header *)
     match Cohttp.(Header.get r.Response.headers "x-dropbox-metadata") with
     | Some h ->
        let metadata = Json.metadata_of_string h in
-       return(Some(metadata, Cohttp_lwt_body.to_stream body))
+       k metadata body
     | None ->
        (* Should not happen *)
        let msg = {
@@ -273,22 +273,40 @@ module Make(Client: Cohttp_lwt.Client) = struct
            error_description = "Missing x-dropbox-metadata header" } in
        fail(Error(Server_error(500, msg)))
 
+  let stream_of_file =
+    get_metadata (fun metadata body ->
+                  return(Some(metadata, Cohttp_lwt_body.to_stream body)))
+
+  let empty_stream =
+    get_metadata (fun metadata body ->
+                  Cohttp_lwt_body.drain_body body >>= fun () ->
+                  return(Some(metadata, Lwt_stream.of_list [])))
+
   let get_file t ?rev ?start ?len fn =
     let headers = headers t in
-    let headers = match start, len with
+    let headers, must_download = match start, len with
       | Some s, Some l ->
-         let range = string_of_int s ^ "-" ^ string_of_int(s + l - 1) in
-         Cohttp.Header.add headers "Range" ("bytes=" ^ range)
+         let s = if s < 0 then 0 else s in
+         if l <= 0 then (Cohttp.Header.add headers "Range" ("bytes=0-0"), false)
+         else
+           let range = string_of_int s ^ "-" ^ string_of_int(s + l - 1) in
+           (Cohttp.Header.add headers "Range" ("bytes=" ^ range),
+            true)
       | Some s, None ->
          let range = string_of_int s ^ "-" in
-         Cohttp.Header.add headers "Range" ("bytes=" ^ range)
+         (Cohttp.Header.add headers "Range" ("bytes=" ^ range),
+          true)
       | None, Some l ->
-         Cohttp.Header.add headers "Range" ("bytes=-" ^ string_of_int l)
-      | None, None -> headers in
+         if l <= 0 then (Cohttp.Header.add headers "Range" ("bytes=0-0"), false)
+         else
+           (Cohttp.Header.add headers "Range" ("bytes=-" ^ string_of_int l),
+            true)
+      | None, None -> headers, true in
     let u =
       Uri.of_string("https://api-content.dropbox.com/1/files/auto/" ^ fn) in
     let u = match rev with None -> u
                          | Some r -> Uri.with_query u ["rev", [r]] in
     Client.get ~headers u
-    >>= check_errors_404 stream_of_file
+    >>= check_errors_404 (if must_download then stream_of_file
+                          else empty_stream)
 end
