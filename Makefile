@@ -18,6 +18,7 @@ setup.data: setup.ml
 
 setup.ml: _oasis $(ATDGEN)
 	oasis setup -setup-update dynamic
+	touch $@
 
 $(ATDGEN): src/dropbox.atd
 	atdgen -j $<
