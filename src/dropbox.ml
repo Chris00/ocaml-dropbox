@@ -150,7 +150,7 @@ module type S = sig
 
   val info : ?locale: string -> t -> info Lwt.t
 
-  type metadata = {
+  type metadata = Dropbox_t.metadata = {
       size: string;
       bytes: int;
       mime_type: string;

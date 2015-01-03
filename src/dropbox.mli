@@ -33,7 +33,7 @@ val string_of_error : error -> string
 exception Error of error
 
 module Date : sig
-  type t
+  type t = Dropbox_date.t
 
 end
 
@@ -186,7 +186,7 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.  *)
 
-  type metadata = {
+  type metadata = Dropbox_t.metadata = {
       size: string;
       (** A human-readable description of the file size (translated by
           locale). *)
