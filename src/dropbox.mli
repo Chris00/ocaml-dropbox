@@ -62,40 +62,37 @@ module type S = sig
   (** {{:http://oauth.net/}OAuth 2.0} authentication. *)
   module OAuth2 : sig
 
-    val authorize : ?response_type: [`Token | `Code] ->
-                    ?redirect_uri: Uri.t ->
-                    ?state: string ->
+    val authorize : ?state: string ->
                     ?force_reapprove: bool ->
                     ?disable_signup: bool ->
-                    string -> Uri.t
-    (** [authorize client_id] starts the OAuth 2.0 authorization flow.
+                    id: string ->
+                    [`Token of Uri.t | `Code of Uri.t option] -> Uri.t
+    (** [authorize client_id response] starts the OAuth 2.0 authorization flow.
         This isn't an API call—it's the web page that lets the user sign
         in to Dropbox and authorize your app.  The [client_id] is the
         app's key, found in the
         {{:https://www.dropbox.com/developers/apps}App Console}.  After
         the user authorizes your app, they will be sent to your redirect
-        URI.  The type of response varies based on the [response_type]:
+        URI.  The type of response varies based on the [response]:
 
-        - [`Token] (also called "implicit grant") returns the bearer
-          token via [redirect_uri] (extract the totken using
-          {!token_of_uri}), rather than requiring your app to make a
-          second call to a server.  This is useful for pure
-          client-side apps, such as mobile apps or JavaScript-based
-          apps.
+        - [`Token redirect_uri] (also called "implicit grant") returns
+          the bearer token by redirecting the user to [redirect_uri]
+          after the authorization has completed.  Extract the token
+          using {!token_of_uri}.  This is useful for pure client-side
+          apps, such as mobile apps or JavaScript-based apps.
 
-        - [`Code] (the default) returns a code via [redirect_uri]
-          (extract the code using {!code_of_uri}) which should then be
-          converted into a bearer token using {!OAuth2.token}.  This
-          is recommended for apps that are running on a server.
+        - [`Code u] if [u = Some redirect_uri], returns a code via by
+          redirecting the user to [redirect_uri] (extract the code
+          using {!code_of_uri}) or, if [u = None], presents the code
+          to use user (on screen) who will be invited to copy it in
+          your app.  The code should then be converted into a bearer
+          token using {!OAuth2.token}.  This is recommended for apps
+          that are running on a server.
 
-        @param redirect_uri Where to redirect the user after
-        authorization has completed.  This must be the exact URI
-        registered in the {{:https://www.dropbox.com/developers/apps}App
+        Note that the URI for [`Token] and [`Code] must be registered
+        in the {{:https://www.dropbox.com/developers/apps}App
         Console}; even 'localhost' must be listed if it is used for
-        testing.  A redirect URI is required for [`Token], but optional
-        for [`Code].  If the redirect URI is omitted, the code will be
-        presented directly to the user and they will be invited to enter
-        the information in your app.
+        testing.
 
         @param state Up to 200 bytes of arbitrary data that will be
         passed back to your redirect URI. This parameter should be used
@@ -110,7 +107,7 @@ module type S = sig
         approve the app again if they've already done so. If [false]
         (default), a user who has already approved the application may
         be automatically redirected to the URI specified by
-        redirect_uri.  If [true], the user will not be automatically
+        [redirect_uri].  If [true], the user will not be automatically
         redirected and will have to approve the app again.
 
         @param disable_signup When [true] (default is [false]) users
