@@ -25,7 +25,7 @@ type error =
       Otherwise, this indicates a transient server error, and your app
       should retry its request. *)
   | Quota_exceeded of error_description
-  (** Too_many_requests *)
+  (** User is over Dropbox storage quota. *)
   | Server_error of int * error_description
 
 val string_of_error : error -> string
@@ -76,14 +76,17 @@ module type S = sig
         the user authorizes your app, they will be sent to your redirect
         URI.  The type of response varies based on the [response_type]:
 
-        - [`Token] (also called "implicit grant") returns a code via
-          [redirect_uri] which should then be converted into a bearer
-          token using {!OAuth2.token}.  This is recommended for apps
-          that are running on a server.
+        - [`Token] (also called "implicit grant") returns the bearer
+          token via [redirect_uri] (extract the totken using
+          {!token_of_uri}), rather than requiring your app to make a
+          second call to a server.  This is useful for pure
+          client-side apps, such as mobile apps or JavaScript-based
+          apps.
 
-        - [`Code] (the default) returns the bearer token via
-          [redirect_uri], rather than requiring your app to make a
-          second call to a server.
+        - [`Code] (the default) returns a code via [redirect_uri]
+          (extract the code using {!code_of_uri}) which should then be
+          converted into a bearer token using {!OAuth2.token}.  This
+          is recommended for apps that are running on a server.
 
         @param redirect_uri Where to redirect the user after
         authorization has completed.  This must be the exact URI
