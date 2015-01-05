@@ -33,7 +33,7 @@ let run ?(args=[]) f =
                  https://www.dropbox.com/developers/apps\n";
         exit 1
       );
-      let u = D.OAuth2.authorize ~response_type:`Code !id in
+      let u = D.OAuth2.authorize !id (`Code None) in
       printf "1. Go to: %s\n" (Uri.to_string u);
       printf "2. Click \"Allow\" (you might have to log in first).\n";
       printf "3. Copy the authorization code:\n";

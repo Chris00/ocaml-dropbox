@@ -100,12 +100,11 @@ let check_errors_404 f =
 module type S = sig
 
   module OAuth2 : sig
-    val authorize : ?response_type: [`Token | `Code] ->
-                    ?redirect_uri: Uri.t ->
-                    ?state: string ->
+    val authorize : ?state: string ->
                     ?force_reapprove: bool ->
                     ?disable_signup: bool ->
-                    string -> Uri.t
+                    id: string ->
+                    [`Token of Uri.t | `Code of Uri.t option] -> Uri.t
 
     type code = string
     val code_of_uri : Uri.t -> (code * string) option
@@ -178,19 +177,18 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let authorize_uri =
       Uri.of_string "https://www.dropbox.com/1/oauth2/authorize"
 
-    let authorize ?(response_type=`Code) ?redirect_uri ?(state="")
-                  ?(force_reapprove=false) ?(disable_signup=false) client_id =
-      let response_type = match response_type with
-        | `Token -> "token"
-        | `Code -> "code" in
-      let q = ["response_type", [response_type];
-               "client_id", [client_id];
+    let authorize ?(state="") ?(force_reapprove=false) ?(disable_signup=false)
+                  ~id:client_id response =
+      let q = ["client_id", [client_id];
                "state", [state];
                "force_reapprove", [string_of_bool force_reapprove];
                "disable_signup", [string_of_bool disable_signup] ] in
-      let q = match redirect_uri with
-        | Some u -> ("redirect_uri", [Uri.to_string u]) :: q
-        | None -> q in
+      let q = match response with
+        | `Token uri -> ("response_type", ["token"])
+                       :: ("redirect_uri", [Uri.to_string uri]) :: q
+        | `Code(Some uri) -> ("response_type", ["code"])
+                            :: ("redirect_uri", [Uri.to_string uri]) :: q
+        | `Code None -> ("response_type", ["code"]) :: q in
       Uri.with_query authorize_uri q
 
     type code = string
