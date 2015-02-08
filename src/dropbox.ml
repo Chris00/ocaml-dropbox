@@ -168,6 +168,9 @@ module type S = sig
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
+  val put_file : t -> string -> int -> Cohttp_lwt_body.t ->
+                 (metadata * string Lwt_stream.t) option Lwt.t
+
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -308,11 +311,13 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
 
+
   let put_file t fn len stream =
     let headers = Cohttp.Header.add (headers t)
-        "Content-Length" ("bytes=" ^ string_of_int len) in
+      "Content-Length" ("Content-Length: " ^ string_of_int len) in
     let u =
       Uri.of_string("https://api-content.dropbox.com/1/files_put/auto/" ^ fn) in
-    Client.put ~headers:headers ~body:stream u
+    Client.put ~headers ~body:stream u
+    >>= check_errors_404 stream_of_file
 
 end

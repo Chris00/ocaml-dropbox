@@ -259,6 +259,9 @@ module type S = sig
         including [start]).  If [start <= 0], the metadata will be present
         but the stream will be empty. *)
 
+  val put_file : t -> string -> int -> Cohttp_lwt_body.t ->
+                 (metadata * string Lwt_stream.t) option Lwt.t
+
   ;;
 end
 
