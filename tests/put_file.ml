@@ -2,12 +2,12 @@ open Lwt
 module D = Dropbox_lwt_unix
 
 let buffer = "test" ;;
-let stream = Cohttp_lwt_body.of_string buffer;;
+let stream, push = Lwt_stream.create () ;;
+push (Some buffer) ;;
 
 let upload t fn =
-  D.put_file t fn (String.length buffer) stream >>= function
-  | None -> Lwt_io.printlf "Error"
-  | Some (m, stream) -> Lwt_io.printlf "Send %S" fn
+  D.put_file t fn (String.length buffer) stream >>= fun metadata ->
+  Lwt_io.printlf "Sended %s" fn
 
 let main t args =
   match args with

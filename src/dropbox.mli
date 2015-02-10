@@ -27,6 +27,8 @@ type error =
   | Quota_exceeded of error_description
   (** User is over Dropbox storage quota. *)
   | Server_error of int * error_description
+  (** Missing Content-Length header *)
+  | Invalid_content_length of error_description
 
 val string_of_error : error -> string
 
@@ -259,8 +261,7 @@ module type S = sig
         including [start]).  If [start <= 0], the metadata will be present
         but the stream will be empty. *)
 
-  val put_file : t -> string -> int -> Cohttp_lwt_body.t ->
-                 (metadata * string Lwt_stream.t) option Lwt.t
+  val put_file : t -> string -> int -> string Lwt_stream.t -> metadata Lwt.t
 
   ;;
 end
