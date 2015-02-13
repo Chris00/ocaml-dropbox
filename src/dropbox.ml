@@ -316,8 +316,9 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
 
   let put_file t fn len stream =
-    let headers = Cohttp.Header.add (headers t)
-      "Content-Length" ("Content-Length: " ^ string_of_int len) in
+    let headers = headers t in
+(*    let headers = Cohttp.Header.add (headers t)
+      "Content-Length" ("Content-Length: " ^ string_of_int len) in*)
     let u =
       Uri.of_string("https://api-content.dropbox.com/1/files_put/auto/" ^ fn) in
     Client.put ~headers ~body:(Cohttp_lwt_body.of_stream stream) u >>= check_errors
