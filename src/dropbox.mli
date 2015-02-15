@@ -261,7 +261,9 @@ module type S = sig
         including [start]).  If [start <= 0], the metadata will be present
         but the stream will be empty. *)
 
-  val put_file : t -> string -> int -> string Lwt_stream.t -> metadata Lwt.t
+  val put_file : t -> ?locale: bool -> ?overwrite: bool -> ?parent_rev: bool ->
+                 ?autorename: bool -> string -> int -> string Lwt_stream.t ->
+                 metadata Lwt.t
 
   ;;
 end

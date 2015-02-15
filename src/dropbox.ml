@@ -172,7 +172,9 @@ module type S = sig
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
-  val put_file : t -> string -> int -> string Lwt_stream.t -> Json.metadata Lwt.t
+  val put_file : t -> ?locale: bool -> ?overwrite: bool -> ?parent_rev: bool ->
+                 ?autorename: bool -> string -> int -> string Lwt_stream.t ->
+                 Json.metadata Lwt.t
 
 end
 
@@ -315,14 +317,13 @@ module Make(Client: Cohttp_lwt.Client) = struct
                           else empty_stream)
 
 
-  let put_file t fn len stream =
-    let headers = headers t in
-(*    let headers = Cohttp.Header.add (headers t)
-      "Content-Length" ("Content-Length: " ^ string_of_int len) in*)
+  let put_file t ?locale ?overwrite ?parent_rev ?autorename fn len stream =
+    let headers = Cohttp.Header.add (headers t)
+      "Content-Length" (string_of_int len) in
     let u =
       Uri.of_string("https://api-content.dropbox.com/1/files_put/auto/" ^ fn) in
-    Client.put ~headers ~body:(Cohttp_lwt_body.of_stream stream) u >>= check_errors
-    >>= fun (_, body) -> Cohttp_lwt_body.to_string body >>= fun body ->
-    return(Json.metadata_of_string body)
+    Client.put ~headers ~body:(Cohttp_lwt_body.of_stream stream) u >>=
+    check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.metadata_of_string body)
 
 end
