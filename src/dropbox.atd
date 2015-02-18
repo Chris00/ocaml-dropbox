@@ -1,4 +1,4 @@
-(* 								-*-tuareg-*- *)
+(*                                                              -*-tuareg-*- *)
 
 type error_description = { ~error: string;
                            ~error_description: string }
@@ -54,6 +54,9 @@ type metadata = { size: string;
                   (* video_info; *)
                   icon: string;
                   modified: date;
-                  client_mtime: date;
+                  ?client_mtime: date option;
                   root: root;
-                }
+                  ?contents: metadata list option }
+
+(* photo_info, video_info, shared_folder, read_only,
+   parent_shared_folder_id, modifier *)
