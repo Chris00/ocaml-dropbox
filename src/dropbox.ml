@@ -165,16 +165,21 @@ module type S = sig
       thumb_exists: bool;
       icon: string;
       modified: Date.t;
-      client_mtime: Date.t;
-      root: [ `Dropbox | `App_folder ]
-    }
+      client_mtime: Date.t option;
+      root: [ `Dropbox | `App_folder ];
+      contents: metadata list option }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
-  val put_file : t -> ?locale: bool -> ?overwrite: bool -> ?parent_rev: bool ->
-                 ?autorename: bool -> string -> int -> string Lwt_stream.t ->
-                 Json.metadata Lwt.t
+  val put_file : t -> ?locale: string -> ?overwrite: bool ->
+                 ?parent_rev: string -> ?autorename: bool -> string ->
+                 int -> string Lwt_stream.t -> Json.metadata Lwt.t
+
+  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: string ->
+                 ?include_deleted: bool -> ?rev: string -> ?locale: string ->
+                 ?include_media_info: bool -> ?include_membership: bool ->
+                 string -> metadata Lwt.t
 
 end
 
@@ -317,13 +322,46 @@ module Make(Client: Cohttp_lwt.Client) = struct
                           else empty_stream)
 
 
-  let put_file t ?locale ?overwrite ?parent_rev ?autorename fn len stream =
-    let headers = Cohttp.Header.add (headers t)
-      "Content-Length" (string_of_int len) in
+  let put_file t ?locale ?(overwrite = true) ?parent_rev 
+               ?(autorename = true) fn len stream =
+    let headers = headers t in
+(*    let headers = Cohttp.Header.add (headers t)
+      "Content-Length" (string_of_int len) in *)
     let u =
-      Uri.of_string("https://api-content.dropbox.com/1/files_put/auto/" ^ fn) in
+      Uri.of_string("https://api-content.dropbox.com/" ^
+                      "1/files_put/auto/" ^ fn) in
+    let u = Uri.with_query u ["overwrite", [string_of_bool overwrite];
+            "autorename", [string_of_bool autorename]] in
+    let u = match locale with
+      | None -> u
+      | Some l -> Uri.with_query u ["locale", [l]] in
+    let u = match parent_rev with
+      | None -> u
+      | Some p_rev -> Uri.with_query u ["parent_rev",[p_rev]] in
     Client.put ~headers ~body:(Cohttp_lwt_body.of_stream stream) u >>=
     check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
+
+
+  let metadata t ?(file_limit=10_000) ?hash ?(list="true")
+               ?include_deleted ?rev ?locale ?include_media_info
+               ?include_membership fn =
+    let headers = headers t in
+    let u =
+      Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
+    let u = Uri.with_query u ["list", [list];
+            "file_limit",[string_of_int file_limit]] in
+    let u = match locale with
+      | None -> u
+      | Some l -> Uri.with_query u ["locale", [l]] in
+    let u = match hash with
+      | None -> u
+      | Some hash -> Uri.with_query u ["hash",[hash]] in
+    let u = match rev with
+      | None -> u
+      | Some rev -> Uri.with_query u ["rev",[rev]] in
+    Client.get ~headers u >>= check_errors >>= fun (_, body) ->
+    Cohttp_lwt_body.to_string body >>= fun body ->
+    return(Json.metadata_of_string body)
 
 end

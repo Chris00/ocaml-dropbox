@@ -236,7 +236,7 @@ module type S = sig
       modified: Date.t;
       (** The last time the file was modified on Dropbox (not included
           for the root folder).  *)
-      client_mtime: Date.t;
+      client_mtime: Date.t option;
       (** For files, this is the modification time set by the desktop
           client when the file was added to Dropbox.  Since this time
           is not verified (the Dropbox server stores whatever the
@@ -246,7 +246,9 @@ module type S = sig
       root: [ `Dropbox | `App_folder ];
       (** The root or top-level folder depending on your access
           level. All paths returned are relative to this root level. *)
+      contents: metadata list option;
     }
+
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -261,10 +263,14 @@ module type S = sig
         including [start]).  If [start <= 0], the metadata will be present
         but the stream will be empty. *)
 
-  val put_file : t -> ?locale: bool -> ?overwrite: bool -> ?parent_rev: bool ->
-                 ?autorename: bool -> string -> int -> string Lwt_stream.t ->
-                 metadata Lwt.t
+  val put_file : t -> ?locale: string -> ?overwrite: bool ->
+                 ?parent_rev: string -> ?autorename: bool -> string ->
+                 int -> string Lwt_stream.t -> metadata Lwt.t
 
+  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: string ->
+                 ?include_deleted: bool -> ?rev: string -> ?locale: string ->
+                 ?include_media_info: bool -> ?include_membership: bool ->
+                 string -> metadata Lwt.t
   ;;
 end
 

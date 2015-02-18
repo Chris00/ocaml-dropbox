@@ -28,13 +28,13 @@ Library "dropbox_lwt_unix"
   FindlibName:   lwt
 
 
-Executable "info"
-  Build$:       flag(tests)
-  Path:         tests
-  MainIs:       info.ml
-  BuildDepends: dropbox.lwt
-  Install:      false
-  CompiledObject: best
+#Executable "info"
+#  Build$:       flag(tests)
+#  Path:         tests
+#  MainIs:       info.ml
+#  BuildDepends: dropbox.lwt
+#  Install:      false
+#  CompiledObject: best
 
 Executable "get_file"
   Build$:       flag(tests)
@@ -48,6 +48,14 @@ Executable "put_file"
   Build$:       flag(tests)
   Path:         tests
   MainIs:       put_file.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
+Executable "metadata"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       metadata.ml
   BuildDepends: dropbox.lwt, unix
   Install:      false
   CompiledObject: best
