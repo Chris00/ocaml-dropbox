@@ -20,6 +20,8 @@ type error =
   | Try_later of int option * error_description
   | Quota_exceeded of error_description
   | Server_error of int * error_description
+  | Not_modified of error_description
+  | Not_acceptable of error_description
 
 (* FIXME: Do we want to render the values as strings closer to OCaml? *)
 let string_of_error = function
@@ -40,6 +42,10 @@ let string_of_error = function
      "Quota_exceeded " ^ Json.string_of_error_description e
   | Server_error (st, e) ->
      sprintf "Server_error(%i, %s)" st (Json.string_of_error_description e)
+  | Not_modified e ->
+     "Not_modified " ^ Json.string_of_error_description e
+  | Not_acceptable e ->
+     "Not_acceptable " ^ Json.string_of_error_description e
 
 exception Error of error
 
@@ -70,6 +76,8 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Not_modified -> fail_error body (fun e -> Not_modified e)
+  | `Not_acceptable -> fail_error body (fun e -> Not_acceptable e)
   | _ -> k r
 
 let check_errors =
@@ -149,6 +157,15 @@ module type S = sig
 
   val info : ?locale: string -> t -> info Lwt.t
 
+  type photo_info = Dropbox_t.photo_info
+                  = { time_taken: Date.t;
+                      lat_long: float list }
+
+  type video_info = Dropbox_t.video_info
+                  = { time_taken: Date.t;
+                      duration: float;
+                      lat_long: float list }
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       bytes: int;
@@ -159,14 +176,22 @@ module type S = sig
       rev: string;
       hash: string;
       thumb_exists: bool;
+      photo_info: photo_info option;
+      video_info: video_info option;
       icon: string;
       modified: Date.t;
-      client_mtime: Date.t;
-      root: [ `Dropbox | `App_folder ]
+      client_mtime: Date.t option;
+      root: [ `Dropbox | `App_folder ];
+      contents: metadata list;
     }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
+
+  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: string ->
+                 ?include_deleted: bool -> ?rev: string -> ?locale: string ->
+                 ?include_media_info: bool -> ?include_membership: bool ->
+                 string -> metadata Lwt.t
 
 end
 
@@ -307,4 +332,30 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.get ~headers u
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
+
+  let metadata t ?(file_limit=10_000) ?hash ?(list="true")
+               ?(include_deleted=false) ?rev ?locale
+               ?(include_media_info=false) ?include_membership fn =
+    let headers = headers t in
+    let u =
+      Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
+    let param = ("list", [list]) ::
+      ("file_limit",[string_of_int file_limit]) ::
+      ("include_media_info",[string_of_bool include_media_info]) :: [] in
+    let param = match list with
+      | "true" -> ("include_deleted",[string_of_bool include_deleted]) :: param
+      | _ -> param in
+    let param = match locale with
+      | Some l -> ("locale", [l]) :: param
+      | None -> param in
+    let param = match hash with
+      | Some hash -> ("hash",[hash]) :: param
+      | None -> param in
+    let param = match rev with
+      | Some rev -> ("rev",[rev]) :: param
+      | None -> param in
+    let u = Uri.with_query u param in
+    Client.get ~headers u >>= check_errors >>= fun (_, body) ->
+    Cohttp_lwt_body.to_string body >>= fun body ->
+    return(Json.metadata_of_string body)
 end
