@@ -27,6 +27,8 @@ type error =
   | Quota_exceeded of error_description
   (** User is over Dropbox storage quota. *)
   | Server_error of int * error_description
+  | Conflict of error_description
+  | Length_required of error_description
 
 val string_of_error : error -> string
 
@@ -259,6 +261,9 @@ module type S = sig
         including [start]).  If [start <= 0], the metadata will be present
         but the stream will be empty. *)
 
+  val put_file : t -> ?locale: string -> ?overwrite: bool ->
+                 ?parent_rev: string -> ?autorename: bool -> string ->
+                 int -> string Lwt_stream.t -> metadata Lwt.t
   ;;
 end
 

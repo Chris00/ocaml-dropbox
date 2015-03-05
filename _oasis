@@ -44,6 +44,13 @@ Executable "get_file"
   Install:      false
   CompiledObject: best
 
+Executable "put_file"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       put_file.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
 
 Document API
   Title:           API reference for Dropbox
