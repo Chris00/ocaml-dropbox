@@ -20,6 +20,8 @@ type error =
   | Try_later of int option * error_description
   | Quota_exceeded of error_description
   | Server_error of int * error_description
+  | Conflict of error_description
+  | Length_required of error_description
 
 (* FIXME: Do we want to render the values as strings closer to OCaml? *)
 let string_of_error = function
@@ -40,6 +42,10 @@ let string_of_error = function
      "Quota_exceeded " ^ Json.string_of_error_description e
   | Server_error (st, e) ->
      sprintf "Server_error(%i, %s)" st (Json.string_of_error_description e)
+  | Conflict e -> 
+     "Conflict " ^ Json.string_of_error_description e
+  | Length_required e ->
+     "Length_required " ^ Json.string_of_error_description e
 
 exception Error of error
 
@@ -70,6 +76,8 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Conflict -> fail_error body (fun e -> Conflict e)
+  | `Length_required -> fail_error body (fun e -> Length_required e)
   | _ -> k r
 
 let check_errors =
@@ -168,6 +176,9 @@ module type S = sig
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
+  val put_file : t -> ?locale: string -> ?overwrite: bool ->
+                 ?parent_rev: string -> ?autorename: bool -> string ->
+                 int -> string Lwt_stream.t -> Json.metadata Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -307,4 +318,25 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.get ~headers u
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
+
+  let put_file t ?locale ?(overwrite = true) ?parent_rev 
+               ?(autorename = true) fn len stream =
+(*    let headers = headers t in *)
+    let headers = Cohttp.Header.add (headers t)
+      "Content-Length" (string_of_int (len)) in
+    let u =
+      Uri.of_string("https://api-content.dropbox.com/" ^
+                      "1/files_put/auto/" ^ fn) in
+    let param = ("overwrite", [string_of_bool overwrite]) ::
+      ("autorename", [string_of_bool autorename]) :: [] in
+    let param = match locale with
+      | Some l -> ("locale", [l]) :: param
+      | None -> param in
+    let param = match parent_rev with
+      | Some p_rev -> ("parent_rev",[p_rev]) :: param
+      | None -> param in
+    let u = Uri.with_query u param in
+    Client.put ~headers ~body:(Cohttp_lwt_body.of_stream stream) u >>=
+    check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.metadata_of_string body)
 end
