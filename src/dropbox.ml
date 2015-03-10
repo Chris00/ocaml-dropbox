@@ -158,13 +158,13 @@ module type S = sig
   val info : ?locale: string -> t -> info Lwt.t
 
   type photo_info = Dropbox_t.photo_info
-                  = { time_taken: Date.t;
+                  = { time_taken: Date.t option;
                       lat_long: float list }
 
   type video_info = Dropbox_t.video_info
-                  = { time_taken: Date.t;
-                      duration: float;
-                      lat_long: float list }
+                  = { time_taken: Date.t option;
+                      duration: float option;
+                      lat_long: float list option}
 
   type metadata = Dropbox_t.metadata = {
       size: string;
@@ -341,7 +341,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
     let param = ("list", [list]) ::
       ("file_limit",[string_of_int file_limit]) ::
-      ("include_media_info",[string_of_bool include_media_info]) :: [] in
+      ("include_media_info",[string_of_bool true]) :: [] in
     let param = match list with
       | "true" -> ("include_deleted",[string_of_bool include_deleted]) :: param
       | _ -> param in

@@ -211,14 +211,14 @@ module type S = sig
 
   type photo_info
     = Dropbox_t.photo_info
-    = { time_taken: Date.t;
-        lat_long: float list }
+    = { time_taken: Date.t option;
+        lat_long: float list}
 
   type video_info
     = Dropbox_t.video_info
-    = { time_taken: Date.t;
-        duration: float;
-        lat_long: float list }
+    = { time_taken: Date.t option;
+        duration: float option;
+        lat_long: float list option}
 
   type metadata = Dropbox_t.metadata = {
       size: string;

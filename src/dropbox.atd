@@ -41,12 +41,12 @@ type root = [
   | App_folder  <json name="app_folder">
   ]
 
-type photo_info = { time_taken: date;
-                    ~lat_long: float list }
+type photo_info = { ?time_taken: date option;
+                    ~lat_long: float list}
 
-type video_info = { time_taken: date;
-                    ~duration: float;
-                    ~lat_long: float list }
+type video_info = { ?time_taken: date option;
+                    ?duration: float option;
+                    ?lat_long: float list option}
 
 type metadata = { size: string;
                   bytes: int;
