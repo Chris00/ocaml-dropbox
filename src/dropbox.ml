@@ -149,6 +149,17 @@ module type S = sig
 
   val info : ?locale: string -> t -> info Lwt.t
 
+  type photo_info
+    = Dropbox_t.photo_info
+    = { time_taken: Date.t option;
+        lat_long: float list }
+
+  type video_info
+    = Dropbox_t.video_info
+    = { time_taken: Date.t option;
+        duration: float option;
+        lat_long: float list option }
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       bytes: int;
@@ -159,14 +170,28 @@ module type S = sig
       rev: string;
       hash: string;
       thumb_exists: bool;
+      photo_info: photo_info option;
+      video_info: video_info option;
       icon: string;
       modified: Date.t;
-      client_mtime: Date.t;
-      root: [ `Dropbox | `App_folder ]
+      client_mtime: Date.t option;
+      root: [ `Dropbox | `App_folder ];
+      contents: metadata list
     }
+
+  type delta
+    = Dropbox_t.delta
+    = { entries: (string * metadata) list;
+        reset: bool;
+        cursor: string;
+        has_more: bool
+      }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
+
+  val delta : t -> ?cursor: string -> ?locale: string -> ?path_prefix: string
+              -> ?include_media_info: bool -> unit -> delta Lwt.t
 
 end
 
@@ -307,4 +332,23 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.get ~headers u
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
+
+  let delta t ?cursor ?locale ?path_prefix ?(include_media_info=false) () =
+    let u = Uri.of_string("https://api.dropbox.com/1/delta") in
+    let param = ("include_media_info",[string_of_bool include_media_info])
+         :: [] in
+    let param = match cursor with
+      | Some cursor -> ("cursor",[cursor]) :: param
+      | None -> param in
+    let param = match locale with
+      | Some locale -> ("locale",[locale]) :: param
+      | None -> param in
+    let param = match path_prefix with
+      | Some path -> ("path_prefix",[path]) :: param
+      | None -> param in
+    let u = Uri.with_query u param in
+    Client.post ~headers:(headers t) u >>= check_errors >>= fun(_, body) ->
+    Cohttp_lwt_body.to_string body >>= fun body ->
+    return(Json.delta_of_string body)
+
 end

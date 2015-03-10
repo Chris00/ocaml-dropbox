@@ -205,6 +205,17 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.  *)
 
+type photo_info
+  = Dropbox_t.photo_info
+  = { time_taken: Date.t option;
+      lat_long: float list }
+
+type video_info
+  = Dropbox_t.video_info
+  = { time_taken: Date.t option;
+      duration: float option;
+      lat_long: float list option }
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       (** A human-readable description of the file size (translated by
@@ -227,6 +238,8 @@ module type S = sig
       thumb_exists: bool;
       (** True if the file is an image that can be converted to a
           thumbnail via the {!thumbnails} call. *)
+      photo_info: photo_info option;
+      video_info: video_info option;
       icon: string;
       (** The name of the icon used to illustrate the file type in Dropbox's
           {{:https://www.dropbox.com/static/images/dropbox-api-icons.zip}icon
@@ -234,7 +247,7 @@ module type S = sig
       modified: Date.t;
       (** The last time the file was modified on Dropbox (not included
           for the root folder).  *)
-      client_mtime: Date.t;
+      client_mtime: Date.t option;
       (** For files, this is the modification time set by the desktop
           client when the file was added to Dropbox.  Since this time
           is not verified (the Dropbox server stores whatever the
@@ -244,7 +257,16 @@ module type S = sig
       root: [ `Dropbox | `App_folder ];
       (** The root or top-level folder depending on your access
           level. All paths returned are relative to this root level. *)
+      contents: metadata list
     }
+
+  type delta
+    = Dropbox_t.delta
+    = { entries: (string * metadata) list;
+        reset: bool;
+        cursor: string;
+        has_more: bool
+      }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -259,6 +281,8 @@ module type S = sig
         including [start]).  If [start <= 0], the metadata will be present
         but the stream will be empty. *)
 
+  val delta : t -> ?cursor: string -> ?locale: string -> ?path_prefix: string
+              -> ?include_media_info: bool -> unit -> delta Lwt.t
   ;;
 end
 
