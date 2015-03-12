@@ -157,8 +157,8 @@ module type S = sig
   type video_info
     = Dropbox_t.video_info
     = { time_taken: Date.t option;
-        duration: float option;
-        lat_long: float list option }
+        duration: float;
+        lat_long: float list }
 
   type metadata = Dropbox_t.metadata = {
       size: string;
@@ -181,16 +181,16 @@ module type S = sig
 
   type delta
     = Dropbox_t.delta
-    = { entries: (string * metadata) list option;
-        reset: bool option;
+    = { entries: (string * metadata) list;
+        reset: bool;
         cursor: string;
-        has_more: bool option
+        has_more: bool
       }
 
   type longpoll_delta
     = Dropbox_t.longpoll_delta
     = { changes: bool;
-        backoff: int option
+        backoff: int
       }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->

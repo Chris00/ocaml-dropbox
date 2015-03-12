@@ -213,8 +213,8 @@ type photo_info
 type video_info
   = Dropbox_t.video_info
   = { time_taken: Date.t option;
-      duration: float option;
-      lat_long: float list option }
+      duration: float;
+      lat_long: float list }
 
   type metadata = Dropbox_t.metadata = {
       size: string;
@@ -239,7 +239,14 @@ type video_info
       (** True if the file is an image that can be converted to a
           thumbnail via the {!thumbnails} call. *)
       photo_info: photo_info option;
+      (** Only returned when the include_media_info parameter is true and the
+          file is an image. A dictionary that includes the creation time
+          (time_taken) and the GPS coordinates (lat_long). *)
       video_info: video_info option;
+      (** Only returned when the include_media_info parameter is true and the
+          file is a video. A dictionary that includes the creation time
+          (time_taken), the GPS coordinates (lat_long), and the length of the
+          video in milliseconds (duration). *)
       icon: string;
       (** The name of the icon used to illustrate the file type in Dropbox's
           {{:https://www.dropbox.com/static/images/dropbox-api-icons.zip}icon
@@ -262,16 +269,16 @@ type video_info
 
   type delta
     = Dropbox_t.delta
-    = { entries: (string * metadata) list option;
-        reset: bool option;
+    = { entries: (string * metadata) list;
+        reset: bool;
         cursor: string;
-        has_more: bool option
+        has_more: bool
       }
 
   type longpoll_delta
     = Dropbox_t.longpoll_delta
     = { changes: bool;
-        backoff: int option
+        backoff: int
       }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
@@ -280,12 +287,13 @@ type video_info
       its content.  [None] indicates that the file does not exists.
 
       @param start The first byte of the file to download.  A negative
-        number is interpreted as [0].  Default: [0].
+       number is interpreted as [0].  Default: [0].
+
       @param len The number of bytes to download.  If [start] is not set,
-        the last [len] bytes of the file are downloaded.  Default: download
-        the entire file (or everything after the position [start],
-        including [start]).  If [start <= 0], the metadata will be present
-        but the stream will be empty. *)
+       the last [len] bytes of the file are downloaded.  Default: download
+       the entire file (or everything after the position [start],
+       including [start]).  If [start <= 0], the metadata will be present
+       but the stream will be empty. *)
 
   val delta : t -> ?cursor: string -> ?locale: string -> ?path_prefix: string
               -> ?include_media_info: bool -> unit -> delta Lwt.t
