@@ -66,8 +66,12 @@ type metadata = { size: string;
                   ~contents: metadata list
                 }
 
-type delta = { entries: (string * metadata) list;
-               reset: bool;
+type delta = { ?entries: (string * metadata) list option;
+               ?reset: bool option;
                cursor: string;
-               has_more: bool
+               ?has_more: bool option
              }
+
+type longpoll_delta = { changes: bool;
+                        ?backoff: int option
+                      }

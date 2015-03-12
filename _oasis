@@ -52,6 +52,22 @@ Executable "delta"
   Install:      false
   CompiledObject: best
 
+Executable "delta_latest_cursor"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       delta_latest_cursor.ml
+  BuildDepends: dropbox.lwt
+  Install:      false
+  CompiledObject: best
+
+Executable "longpoll_delta"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       longpoll_delta.ml
+  BuildDepends: dropbox.lwt
+  Install:      false
+  CompiledObject: best
+
 Document API
   Title:           API reference for Dropbox
   Type:            OCamlbuild (0.4)

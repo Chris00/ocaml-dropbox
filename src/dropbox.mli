@@ -262,10 +262,16 @@ type video_info
 
   type delta
     = Dropbox_t.delta
-    = { entries: (string * metadata) list;
-        reset: bool;
+    = { entries: (string * metadata) list option;
+        reset: bool option;
         cursor: string;
-        has_more: bool
+        has_more: bool option
+      }
+
+  type longpoll_delta
+    = Dropbox_t.longpoll_delta
+    = { changes: bool;
+        backoff: int option
       }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
@@ -283,6 +289,11 @@ type video_info
 
   val delta : t -> ?cursor: string -> ?locale: string -> ?path_prefix: string
               -> ?include_media_info: bool -> unit -> delta Lwt.t
+
+  val delta_latest_cursor : t -> ?path_prefix: string ->
+                            ?include_media_info: bool -> unit -> delta Lwt.t
+
+  val longpoll_delta : t -> ?timeout: int -> string -> longpoll_delta Lwt.t
   ;;
 end
 

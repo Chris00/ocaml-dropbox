@@ -181,10 +181,16 @@ module type S = sig
 
   type delta
     = Dropbox_t.delta
-    = { entries: (string * metadata) list;
-        reset: bool;
+    = { entries: (string * metadata) list option;
+        reset: bool option;
         cursor: string;
-        has_more: bool
+        has_more: bool option
+      }
+
+  type longpoll_delta
+    = Dropbox_t.longpoll_delta
+    = { changes: bool;
+        backoff: int option
       }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
@@ -193,6 +199,10 @@ module type S = sig
   val delta : t -> ?cursor: string -> ?locale: string -> ?path_prefix: string
               -> ?include_media_info: bool -> unit -> delta Lwt.t
 
+  val delta_latest_cursor : t -> ?path_prefix: string ->
+                            ?include_media_info: bool -> unit -> delta Lwt.t
+
+  val longpoll_delta : t -> ?timeout: int-> string -> longpoll_delta Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -351,4 +361,23 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Cohttp_lwt_body.to_string body >>= fun body ->
     return(Json.delta_of_string body)
 
+  let delta_latest_cursor t ?path_prefix ?(include_media_info=false) () =
+    let u = Uri.of_string("https://api.dropbox.com/1/delta/latest_cursor") in
+    let param = ("include_media_info",[string_of_bool include_media_info])
+         :: [] in
+    let param = match path_prefix with
+      | Some path_prefix -> ("path_prefix",[path_prefix]) :: param
+      | None -> param in
+    let u = Uri.with_query u param in
+    Client.post ~headers:(headers t) u >>= check_errors >>= fun(_, body) ->
+    Cohttp_lwt_body.to_string body >>= fun body ->
+    return(Json.delta_of_string body)
+
+  let longpoll_delta t ?(timeout=30) cursor =
+    let u = Uri.of_string("https://api-notify.dropbox.com/1/longpoll_delta") in
+    let param = ("cursor",[cursor]) ::("timeout",[string_of_int timeout]) :: [] in
+    let u = Uri.with_query u param in
+    Client.get ~headers:(headers t) u >>= check_errors >>= fun(_, body) ->
+    Cohttp_lwt_body.to_string body >>= fun body ->
+    return(Json.longpoll_delta_of_string body)
 end
