@@ -163,8 +163,8 @@ module type S = sig
 
   type video_info = Dropbox_t.video_info
                   = { time_taken: Date.t option;
-                      duration: float option;
-                      lat_long: float list option}
+                      duration: float;
+                      lat_long: float list }
 
   type metadata = Dropbox_t.metadata = {
       size: string;
@@ -336,26 +336,21 @@ module Make(Client: Cohttp_lwt.Client) = struct
   let metadata t ?(file_limit=10_000) ?hash ?(list="true")
                ?(include_deleted=false) ?rev ?locale
                ?(include_media_info=false) ?include_membership fn =
-    let headers = headers t in
-    let u =
-      Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
-    let param = ("list", [list]) ::
-      ("file_limit",[string_of_int file_limit]) ::
-      ("include_media_info",[string_of_bool true]) :: [] in
-    let param = match list with
-      | "true" -> ("include_deleted",[string_of_bool include_deleted]) :: param
-      | _ -> param in
+    let u = Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
+    let param = ("list", [list]) :: ("file_limit",[string_of_int file_limit]) ::
+      ("include_media_info",[string_of_bool include_media_info]) :: [] in
+    let param = match list, hash with
+      | "true", Some h -> ("include_deleted",[string_of_bool include_deleted]) 
+                          :: ("hash",[h]) :: param
+      | _, _ -> param in
     let param = match locale with
       | Some l -> ("locale", [l]) :: param
-      | None -> param in
-    let param = match hash with
-      | Some hash -> ("hash",[hash]) :: param
       | None -> param in
     let param = match rev with
       | Some rev -> ("rev",[rev]) :: param
       | None -> param in
     let u = Uri.with_query u param in
-    Client.get ~headers u >>= check_errors >>= fun (_, body) ->
+    Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
     Cohttp_lwt_body.to_string body >>= fun body ->
     return(Json.metadata_of_string body)
 end

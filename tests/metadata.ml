@@ -7,7 +7,7 @@ let metadata t fn =
 
 let main t args =
   match args with
-  | [] -> Lwt_io.printlf "No file pr folder specified"
+  | [] -> Lwt_io.printlf "No file or folder specified"
   | _ -> Lwt_list.iter_p (metadata t) args
 
 let () =
