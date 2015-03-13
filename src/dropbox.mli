@@ -283,6 +283,8 @@ module type S = sig
 
   val revisions : t -> ?rev_limit: int -> ?locale: string ->
                   string -> revisions Lwt.t
+
+  val restore : t -> ?locale: string -> string -> string -> metadata Lwt.t
   ;;
 end
 

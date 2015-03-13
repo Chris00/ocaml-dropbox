@@ -184,6 +184,8 @@ module type S = sig
   val revisions : t -> ?rev_limit: int -> ?locale: string ->
                   string -> revisions Lwt.t
 
+  val restore : t -> ?locale: string -> string -> string -> metadata Lwt.t
+
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -334,4 +336,15 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
     Cohttp_lwt_body.to_string body >>= fun body ->
     return(Json.revisions_of_string body)
+
+  let restore t ?locale rev fn =
+    let u = Uri.of_string("https://api.dropbox.com/1/restore/auto/" ^ fn) in
+    let param = ("rev",[rev]) :: [] in
+    let param = match locale with
+      | Some l -> ("locale",[l]) :: param
+      | None -> param in
+    let u = Uri.with_query u param in
+    Client.post ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
+    Cohttp_lwt_body.to_string body >>= fun body ->
+    return(Json.metadata_of_string body)
 end
