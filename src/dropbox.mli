@@ -295,11 +295,11 @@ type video_info
        including [start]).  If [start <= 0], the metadata will be present
        but the stream will be empty. *)
 
-  val delta : t -> ?cursor: string -> ?locale: string -> ?path_prefix: string
-              -> ?include_media_info: bool -> unit -> delta Lwt.t
+  val delta : ?cursor: string -> ?locale: string -> ?path_prefix: string
+              -> ?include_media_info: bool -> t -> delta Lwt.t
 
-  val delta_latest_cursor : t -> ?path_prefix: string ->
-                            ?include_media_info: bool -> unit -> delta Lwt.t
+  val delta_latest_cursor : ?path_prefix: string -> ?include_media_info: bool
+                            -> t -> delta Lwt.t
 
   val longpoll_delta : t -> ?timeout: int -> string -> longpoll_delta Lwt.t
   ;;

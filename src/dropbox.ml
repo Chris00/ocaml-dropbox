@@ -196,11 +196,11 @@ module type S = sig
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
-  val delta : t -> ?cursor: string -> ?locale: string -> ?path_prefix: string
-              -> ?include_media_info: bool -> unit -> delta Lwt.t
+  val delta : ?cursor: string -> ?locale: string -> ?path_prefix: string
+              -> ?include_media_info: bool -> t -> delta Lwt.t
 
-  val delta_latest_cursor : t -> ?path_prefix: string ->
-                            ?include_media_info: bool -> unit -> delta Lwt.t
+  val delta_latest_cursor : ?path_prefix: string -> ?include_media_info: bool
+                            -> t -> delta Lwt.t
 
   val longpoll_delta : t -> ?timeout: int-> string -> longpoll_delta Lwt.t
 end
@@ -343,7 +343,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
 
-  let delta t ?cursor ?locale ?path_prefix ?(include_media_info=false) () =
+  let delta ?cursor ?locale ?path_prefix ?(include_media_info=false) t =
     let u = Uri.of_string("https://api.dropbox.com/1/delta") in
     let param = ("include_media_info",[string_of_bool include_media_info])
          :: [] in
@@ -361,7 +361,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Cohttp_lwt_body.to_string body >>= fun body ->
     return(Json.delta_of_string body)
 
-  let delta_latest_cursor t ?path_prefix ?(include_media_info=false) () =
+  let delta_latest_cursor ?path_prefix ?(include_media_info=false) t =
     let u = Uri.of_string("https://api.dropbox.com/1/delta/latest_cursor") in
     let param = ("include_media_info",[string_of_bool include_media_info])
          :: [] in

@@ -2,7 +2,7 @@ open Lwt
 module D = Dropbox_lwt_unix
 
 let longpoll t cursor =
-  (D.longpoll_delta t cursor ) >>= fun delta ->
+  D.longpoll_delta t cursor >>= fun delta ->
   Lwt_io.printlf "%s" (Dropbox_j.string_of_longpoll_delta delta)
 
 let main t args =
