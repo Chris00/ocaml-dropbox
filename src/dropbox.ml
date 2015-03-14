@@ -177,7 +177,7 @@ module type S = sig
       contents: metadata list
     }
 
-  type shares = Dropbox_t.shares
+  type shared_url = Dropbox_t.shared_url
               = { url: string;
                   expires: Date.t;
                   visibility: string }
@@ -186,7 +186,9 @@ module type S = sig
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
   val shares : t -> ?locale: string -> ?short_url: bool ->
-               string -> shares Lwt.t
+               string -> shared_url Lwt.t
+
+  val media : t -> ?locale: string -> string -> shared_url Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -336,5 +338,15 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query u param in
     Client.post ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
     Cohttp_lwt_body.to_string body >>= fun body ->
-    return(Json.shares_of_string body)    
+    return(Json.shared_url_of_string body)
+
+  let media t ?locale fn =
+    let u = Uri.of_string("https://api.dropbox.com/1/media/auto/" ^ fn) in
+    let u = match locale with
+      | Some l -> Uri.with_query u [("locale",[l])]
+      | None -> u in
+    Client.post ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
+    Cohttp_lwt_body.to_string body >>= fun body ->
+    return(Json.shared_url_of_string body)
+
 end

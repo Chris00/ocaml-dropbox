@@ -266,8 +266,8 @@ module type S = sig
           level. All paths returned are relative to this root level. *)
       contents: metadata list;
     }
- type shares
-   = Dropbox_t.shares
+ type shared_url
+   = Dropbox_t.shared_url
    = { url: string;
        expires: Date.t;
        visibility: string }
@@ -286,7 +286,9 @@ module type S = sig
         but the stream will be empty. *)
 
   val shares : t -> ?locale: string -> ?short_url: bool -> string ->
-               shares Lwt.t
+               shared_url Lwt.t
+
+  val media : t -> ?locale: string -> string -> shared_url Lwt.t
   ;;
 end
 
