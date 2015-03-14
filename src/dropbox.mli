@@ -266,6 +266,9 @@ module type S = sig
           level. All paths returned are relative to this root level. *)
       contents: metadata list;
     }
+  type copy_ref = Dropbox_t.copy_ref
+                = { copy_ref: string;
+                    expires: Date.t }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -279,6 +282,8 @@ module type S = sig
         the entire file (or everything after the position [start],
         including [start]).  If [start <= 0], the metadata will be present
         but the stream will be empty. *)
+
+  val copy_ref : t -> string -> copy_ref Lwt.t
   ;;
 end
 
