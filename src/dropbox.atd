@@ -65,3 +65,7 @@ type metadata = { size: string;
                   root: root;
                   ~contents: metadata list
                 }
+
+type shares = { url: string;
+                expires: date;
+                ~visibility: string }

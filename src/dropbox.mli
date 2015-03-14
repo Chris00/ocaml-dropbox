@@ -266,6 +266,11 @@ module type S = sig
           level. All paths returned are relative to this root level. *)
       contents: metadata list;
     }
+ type shares
+   = Dropbox_t.shares
+   = { url: string;
+       expires: Date.t;
+       visibility: string }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -279,6 +284,9 @@ module type S = sig
         the entire file (or everything after the position [start],
         including [start]).  If [start <= 0], the metadata will be present
         but the stream will be empty. *)
+
+  val shares : t -> ?locale: string -> ?short_url: bool -> string ->
+               shares Lwt.t
   ;;
 end
 
