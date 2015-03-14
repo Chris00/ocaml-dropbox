@@ -27,6 +27,7 @@ type error =
   | Quota_exceeded of error_description
   (** User is over Dropbox storage quota. *)
   | Server_error of int * error_description
+  | Unsupported_media_type of error_description
 
 val string_of_error : error -> string
 
@@ -279,7 +280,10 @@ module type S = sig
         the entire file (or everything after the position [start],
         including [start]).  If [start <= 0], the metadata will be present
         but the stream will be empty. *)
-  ;;
+
+  val thumbnails : t -> ?format: string -> ?size: string ->
+                   ?start: int -> ?len: int ->string ->
+                   (metadata * string Lwt_stream.t) option Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) : S
