@@ -266,6 +266,7 @@ module type S = sig
           level. All paths returned are relative to this root level. *)
       contents: metadata list;
     }
+  type search = metadata list
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -279,6 +280,10 @@ module type S = sig
         the entire file (or everything after the position [start],
         including [start]).  If [start <= 0], the metadata will be present
         but the stream will be empty. *)
+
+  val search : t -> ?file_limit: int -> ?include_deleted: bool ->
+               ?locale: string -> ?include_membership: bool ->
+               ?fn: string -> string -> search Lwt.t
   ;;
 end
 

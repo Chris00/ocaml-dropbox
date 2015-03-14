@@ -61,7 +61,9 @@ type metadata = { size: string;
                   ?video_info: video_info option;
                   icon: string;
                   modified: date;
-                  client_mtime: date option;
+                  ?client_mtime: date option;
                   root: root;
                   ~contents: metadata list
                 }
+
+type search = metadata list
