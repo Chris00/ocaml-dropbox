@@ -248,6 +248,12 @@ module type S = sig
           level. All paths returned are relative to this root level. *)
     }
 
+  type chunked_upload
+    = Dropbox_t.chunked_upload
+    = { upload_id: string;
+        offset: int;
+        expires: Date.t }
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
   (** [get_file t name] return the metadata for the file and a stream of
@@ -264,6 +270,18 @@ module type S = sig
   val put_file : t -> ?locale: string -> ?overwrite: bool ->
                  ?parent_rev: string -> ?autorename: bool -> string ->
                  int -> string Lwt_stream.t -> metadata Lwt.t
+
+  val chunked_upload : t -> ?upload_id: string -> ?offset: int ->
+                       Cohttp_lwt_body.t -> chunked_upload Lwt.t
+
+  val file_put : t -> ?locale: string -> ?overwrite: bool ->
+                 ?parent_rev: string -> ?autorename: bool -> string ->
+                 int -> Cohttp_lwt_body.t -> metadata Lwt.t
+
+  val commit_chunked_upload : t -> ?locale: string -> ?overwrite: bool ->
+                              ?parent_rev: string -> ?autorename: bool ->
+                              ?upload_id: string -> string ->
+                              metadata Lwt.t
   ;;
 end
 

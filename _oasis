@@ -17,7 +17,7 @@ Library "dropbox"
   Path:    src
   Modules: Dropbox, Dropbox_date, Dropbox_t
   InternalModules: Dropbox_j
-  BuildDepends: bytes, cohttp.lwt-core, lwt, atdgen
+  BuildDepends: bytes, cohttp.lwt-core, lwt, atdgen, lwt.syntax
 
 Library "dropbox_lwt_unix"
   Path:          src
@@ -51,6 +51,23 @@ Executable "put_file"
   BuildDepends: dropbox.lwt, unix
   Install:      false
   CompiledObject: best
+
+Executable "file_put"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       file_put.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
+Executable "chunked_upload"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       chunked_upload.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
 
 Document API
   Title:           API reference for Dropbox

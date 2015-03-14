@@ -57,3 +57,7 @@ type metadata = { size: string;
                   client_mtime: date;
                   root: root;
                 }
+
+type chunked_upload = { upload_id: string;
+                        offset: int;
+                        expires: date }
