@@ -27,10 +27,11 @@ type error =
   | Quota_exceeded of error_description
   (** User is over Dropbox storage quota. *)
   | Server_error of int * error_description
-  (** The folder contents have not changed (relies on hash parameter). *)
+  (** Server error 5xx *)
   | Not_modified of error_description
-  (** There are too many file entries to return. *)
+  (** The folder contents have not changed (relies on hash parameter). *)
   | Not_acceptable of error_description
+  (** There are too many file entries to return. *)
 
 val string_of_error : error -> string
 
@@ -211,14 +212,16 @@ module type S = sig
 
   type photo_info
     = Dropbox_t.photo_info
-    = { time_taken: Date.t option;
-        lat_long: float list}
+    = { time_taken: Date.t option; (** The creation time of the photo *)
+        lat_long: float list       (** The GPS coordinates of the photo *)
+      }
 
   type video_info
     = Dropbox_t.video_info
-    = { time_taken: Date.t option;
-        duration: float;
-        lat_long: float list }
+    = { time_taken: Date.t option; (** The creation time of the video *)
+        duration: float;           (** The video length in ms *)
+        lat_long: float list       (** The GPS coordinates of the video *)
+      } 
 
   type metadata = Dropbox_t.metadata = {
       size: string;
@@ -269,6 +272,8 @@ module type S = sig
       (** The root or top-level folder depending on your access
           level. All paths returned are relative to this root level. *)
       contents: metadata list;
+      (** For folders, contents is the list of the metadata of the files
+          contained in this folder. Return nothing if the folder is empty. *)
     }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
@@ -330,7 +335,11 @@ module type S = sig
       pending will be returned instead of a dictionary.
 
       @param include_membership If true, metadata for a shared folder will
-      include a list of members and a list of groups. *)
+      include a list of members and a list of groups.
+
+      Possible errors:
+      304 The folder contents have not changed (relies on hash parameter).
+      406 There are too many file entries to return. *)
   ;;
 end
 

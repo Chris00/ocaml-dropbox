@@ -192,7 +192,6 @@ module type S = sig
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
                  string -> metadata Lwt.t
-
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -339,9 +338,13 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
     let param = ("list", [list]) :: ("file_limit",[string_of_int file_limit]) ::
       ("include_media_info",[string_of_bool include_media_info]) :: [] in
+    (** include_deleted is only applicable when list is set and hash is
+        ignored if list=false. We assume that list is whether true of false.*)
     let param = match list, hash with
       | "true", Some h -> ("include_deleted",[string_of_bool include_deleted]) 
                           :: ("hash",[h]) :: param
+      | "true", None -> ("include_deleted",[string_of_bool include_deleted])
+                        :: param
       | _, _ -> param in
     let param = match locale with
       | Some l -> ("locale", [l]) :: param
@@ -350,7 +353,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       | Some rev -> ("rev",[rev]) :: param
       | None -> param in
     let u = Uri.with_query u param in
-    Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
-    Cohttp_lwt_body.to_string body >>= fun body ->
-    return(Json.metadata_of_string body)
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.metadata_of_string body)
 end
