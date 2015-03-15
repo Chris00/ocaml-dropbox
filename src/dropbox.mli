@@ -220,6 +220,37 @@ module type S = sig
         duration: float;
         lat_long: float list }
 
+  type user
+    = Dropbox_t.user
+    = { uid: int;
+        display_name: string;
+        same_team: bool;
+        member_id: string }
+
+  type user_info 
+    = Dropbox_t.user_info
+    = { user: user;
+        access_type: string;
+        active: bool }
+
+  type membership = user_info list
+
+  type shared_folder 
+    = Dropbox_t.shared_folder
+    = { shared_folder_id: string;
+        shared_folder_name: string;
+        path: string;
+        access_type: string;
+        shared_link_policy: string;
+        owner: user option;
+        groups: user list option;
+        membership: membership }
+
+type s_f_for_metadata = Dropbox_t.s_f_for_metadata
+                      = { id: int;
+                          membership: membership option;
+                          groups: user list option}
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       (** A human-readable description of the file size (translated by
@@ -269,7 +300,13 @@ module type S = sig
       (** The root or top-level folder depending on your access
           level. All paths returned are relative to this root level. *)
       contents: metadata list;
+      shared_folder: s_f_for_metadata option;
+      read_only: bool;
+      parent_shared_folder_id: int;
+      modifier: user option;
     }
+
+  type shared_folders = shared_folder list
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -331,6 +368,14 @@ module type S = sig
 
       @param include_membership If true, metadata for a shared folder will
       include a list of members and a list of groups. *)
+
+  val shared_folders : ?shared_folder_id: string -> 
+                      ?include_membership: bool ->
+                      t -> shared_folders Lwt.t
+
+  val shared_folder : ?shared_folder_id: string -> 
+                      ?include_membership: bool ->
+                      t -> shared_folder Lwt.t
   ;;
 end
 

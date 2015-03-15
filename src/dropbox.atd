@@ -17,6 +17,7 @@ type team = { name: string;
 type quota_info = { shared: int;
                     quota: int;
                     normal: int }
+
 type uri = string wrap
            <ocaml t="Uri.t" wrap="Uri.of_string" unwrap="Uri.to_string">
 
@@ -48,6 +49,30 @@ type video_info = { ?time_taken: date option;
                     ~duration: float;
                     ~lat_long: float list }
 
+type user = { uid: int;
+              display_name: string;
+              ~same_team: bool;
+              ~member_id: string }
+
+type user_info = { user: user;
+                   access_type: string;
+                   active: bool }
+
+type membership = user_info list
+
+type shared_folder = { shared_folder_id: string;
+                       shared_folder_name: string;
+                       path: string;
+                       access_type: string;
+                       shared_link_policy: string;
+                       ?owner: user option;
+                       ?groups: user list option;
+                       ~membership: membership }
+
+type s_f_for_metadata = { ~id: int;
+                          ?membership: membership option;
+                          ?groups: user list option}
+
 type metadata = { size: string;
                   bytes: int;
                   ~mime_type: string;
@@ -63,5 +88,11 @@ type metadata = { size: string;
                   modified: date;
                   ?client_mtime: date option;
                   root: root;
-                  ~contents: metadata list
+                  ~contents: metadata list;
+                  ?shared_folder: s_f_for_metadata option;
+                  ~read_only: bool;
+                  ~parent_shared_folder_id: int;
+                  ?modifier: user option;
                 }
+
+type shared_folders = shared_folder list
