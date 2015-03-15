@@ -17,7 +17,7 @@ Library "dropbox"
   Path:    src
   Modules: Dropbox, Dropbox_date, Dropbox_t
   InternalModules: Dropbox_j
-  BuildDepends: bytes, cohttp.lwt-core, lwt, atdgen, lwt.syntax
+  BuildDepends: bytes, cohttp.lwt-core, lwt, atdgen
 
 Library "dropbox_lwt_unix"
   Path:          src
@@ -44,18 +44,18 @@ Executable "get_file"
   Install:      false
   CompiledObject: best
 
-Executable "put_file"
+Executable "stream_files_put"
   Build$:       flag(tests)
   Path:         tests
-  MainIs:       put_file.ml
+  MainIs:       stream_files_put.ml
   BuildDepends: dropbox.lwt, unix
   Install:      false
   CompiledObject: best
 
-Executable "file_put"
+Executable "cohttp_body_files_put"
   Build$:       flag(tests)
   Path:         tests
-  MainIs:       file_put.ml
+  MainIs:       cohttp_body_files_put.ml
   BuildDepends: dropbox.lwt, unix
   Install:      false
   CompiledObject: best

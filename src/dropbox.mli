@@ -267,16 +267,17 @@ module type S = sig
         including [start]).  If [start <= 0], the metadata will be present
         but the stream will be empty. *)
 
-  val put_file : t -> ?locale: string -> ?overwrite: bool ->
-                 ?parent_rev: string -> ?autorename: bool -> string ->
-                 int -> string Lwt_stream.t -> metadata Lwt.t
+  val stream_files_put : t -> ?locale: string -> ?overwrite: bool ->
+                         ?parent_rev: string -> ?autorename: bool -> string ->
+                         int -> string Lwt_stream.t -> metadata Lwt.t
+
+  val cohttp_body_files_put : t -> ?locale: string -> ?overwrite: bool ->
+                              ?parent_rev: string -> ?autorename: bool ->
+                              string -> int -> Cohttp_lwt_body.t ->
+                              metadata Lwt.t
 
   val chunked_upload : t -> ?upload_id: string -> ?offset: int ->
                        Cohttp_lwt_body.t -> chunked_upload Lwt.t
-
-  val file_put : t -> ?locale: string -> ?overwrite: bool ->
-                 ?parent_rev: string -> ?autorename: bool -> string ->
-                 int -> Cohttp_lwt_body.t -> metadata Lwt.t
 
   val commit_chunked_upload : t -> ?locale: string -> ?overwrite: bool ->
                               ?parent_rev: string -> ?autorename: bool ->

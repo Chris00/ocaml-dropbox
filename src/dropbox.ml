@@ -181,16 +181,17 @@ module type S = sig
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
-  val put_file : t -> ?locale: string -> ?overwrite: bool ->
-                 ?parent_rev: string -> ?autorename: bool -> string ->
-                 int -> string Lwt_stream.t -> metadata Lwt.t
+  val stream_files_put : t -> ?locale: string -> ?overwrite: bool ->
+                         ?parent_rev: string -> ?autorename: bool -> string ->
+                         int -> string Lwt_stream.t -> metadata Lwt.t
+
+  val cohttp_body_files_put : t -> ?locale: string -> ?overwrite: bool ->
+                              ?parent_rev: string -> ?autorename: bool ->
+                              string -> int -> Cohttp_lwt_body.t ->
+                              metadata Lwt.t
 
   val chunked_upload : t -> ?upload_id: string -> ?offset: int ->
                        Cohttp_lwt_body.t -> chunked_upload Lwt.t
-
-  val file_put : t -> ?locale: string -> ?overwrite: bool ->
-                 ?parent_rev: string -> ?autorename: bool -> string ->
-                 int -> Cohttp_lwt_body.t -> metadata Lwt.t
 
   val commit_chunked_upload : t -> ?locale: string -> ?overwrite: bool ->
                               ?parent_rev: string -> ?autorename: bool ->
@@ -336,11 +337,12 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
 
-  let put_file t ?locale ?(overwrite = true) ?parent_rev 
-               ?(autorename = true) fn len stream =
-    let headers = headers t in 
-(*    let headers = Cohttp.Header.add (headers t)
-      "Content-Length" (string_of_int (len)) in*)
+
+  let stream_files_put t ?locale ?(overwrite = true) ?parent_rev 
+                       ?(autorename = true) fn len stream =
+  (* let headers = headers t in *)
+    let headers = Cohttp.Header.add (headers t)
+      "Content-Length" (string_of_int (len)) in
     let u =
       Uri.of_string("https://api-content.dropbox.com/" ^
                       "1/files_put/auto/" ^ fn) in
@@ -357,22 +359,9 @@ module Make(Client: Cohttp_lwt.Client) = struct
     check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
 
-  let chunked_upload t ?upload_id ?offset chunked_data =
-    let u =
-      Uri.of_string("https://api-content.dropbox.com/1/chunked_upload") in
-    let param = match upload_id with
-      | Some id -> ("upload_id",[id]) :: []
-      | None -> [] in
-    let param = match offset with
-      | Some offset -> ("offset",[string_of_int 0]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in
-    Client.put ~body:chunked_data ~chunked:true ~headers:(headers t)  u >>=
-    check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.chunked_upload_of_string body)
 
-  let file_put t ?locale ?(overwrite = true) ?parent_rev 
-               ?(autorename = true) fn len stream =
+  let cohttp_body_files_put t ?locale ?(overwrite = true) ?parent_rev 
+                            ?(autorename = true) fn len stream =
     (* let headers = headers t in  *)
     let headers = Cohttp.Header.add (headers t)
       "Content-Length" (string_of_int (len)) in
@@ -392,6 +381,22 @@ module Make(Client: Cohttp_lwt.Client) = struct
     check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
 
+
+  let chunked_upload t ?upload_id ?offset chunked_data =
+    let u =
+      Uri.of_string("https://api-content.dropbox.com/1/chunked_upload") in
+    let param = match upload_id with
+      | Some id -> ("upload_id",[id]) :: []
+      | None -> [] in
+    let param = match offset with
+      | Some offset -> ("offset",[string_of_int offset]) :: param
+      | None -> param in
+    let u = Uri.with_query u param in
+    Client.put ~body:chunked_data ~chunked:true ~headers:(headers t)  u >>=
+    check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.chunked_upload_of_string body)
+
+
   let commit_chunked_upload t ?locale ?(overwrite=true) ?parent_rev
                             ?(autorename=true) ?upload_id fn =
     let u = Uri.of_string("https://api-content.dropbox.com/1/"
@@ -408,5 +413,4 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.post ~headers:(headers t) u >>=
     check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
-
 end
