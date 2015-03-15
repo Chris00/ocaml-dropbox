@@ -29,6 +29,7 @@ type error =
   | Server_error of int * error_description
   | Conflict of error_description
   | Length_required of error_description
+  | Not_found404 of error_description
 
 val string_of_error : error -> string
 

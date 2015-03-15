@@ -22,6 +22,7 @@ type error =
   | Server_error of int * error_description
   | Conflict of error_description
   | Length_required of error_description
+  | Not_found404 of error_description
 
 (* FIXME: Do we want to render the values as strings closer to OCaml? *)
 let string_of_error = function
@@ -46,6 +47,8 @@ let string_of_error = function
      "Conflict " ^ Json.string_of_error_description e
   | Length_required e ->
      "Length_required " ^ Json.string_of_error_description e
+  | Not_found404 e ->
+     "Not_found404 " ^ Json.string_of_error_description e
 
 exception Error of error
 
@@ -78,6 +81,7 @@ let check_errors_k k ((rq, body) as r) =
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
   | `Conflict -> fail_error body (fun e -> Conflict e)
   | `Length_required -> fail_error body (fun e -> Length_required e)
+  | `Not_found -> fail_error body (fun e -> Not_found404 e)
   | _ -> k r
 
 let check_errors =
