@@ -3,6 +3,7 @@ module D = Dropbox_lwt_unix
 
 let upload t fn =
   Lwt_unix.(openfile fn [O_RDONLY] 0) >>= fun fd ->
+  Lwt_unix.stat fn >>= fun u -> return(u.Lwt_unix.st_size) >>= fun size ->
   let read () =
     let buffer = String.create 1024 in
     Lwt_unix.read fd buffer 0 1024 >>= fun len ->
@@ -11,9 +12,9 @@ let upload t fn =
     | 0 -> return(None)
     | a -> return(Some (String.sub buffer 0 a)) in
   let stream =Lwt_stream.from read in
-  Lwt_unix.stat fn >>= fun u -> return(u.Lwt_unix.st_size) >>= fun size ->
   D.stream_files_put t fn size stream >>= fun m ->
-  Lwt_unix.close fd >>= fun () -> Lwt_io.printlf "Sended %s" fn
+  Lwt_unix.close fd >>= fun () -> Lwt_io.printlf "Sended: %s\nMetadata: %s\n"
+  fn (Dropbox_j.string_of_metadata m)
 
 let main t args =
   match args with
