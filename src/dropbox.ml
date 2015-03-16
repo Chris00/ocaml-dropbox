@@ -327,8 +327,8 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let copy_ref t fn =
     let u = Uri.of_string("https://api.dropbox.com/1/copy_ref/auto/" ^ fn) in
-    Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
-    Cohttp_lwt_body.to_string body >>= fun body ->
-    return(Json.copy_ref_of_string body)
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.copy_ref_of_string body)
 
 end

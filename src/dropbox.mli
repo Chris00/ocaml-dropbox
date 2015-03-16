@@ -266,9 +266,11 @@ module type S = sig
           level. All paths returned are relative to this root level. *)
       contents: metadata list;
     }
-  type copy_ref = Dropbox_t.copy_ref
-                = { copy_ref: string;
-                    expires: Date.t }
+  type copy_ref
+    = Dropbox_t.copy_ref
+    = { copy_ref: string; (** A copy_ref to the specified file *)
+        expires: Date.t   (** The link's expiration date *)
+      }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -276,14 +278,19 @@ module type S = sig
       its content.  [None] indicates that the file does not exists.
 
       @param start The first byte of the file to download.  A negative
-        number is interpreted as [0].  Default: [0].
+      number is interpreted as [0].  Default: [0].
+
       @param len The number of bytes to download.  If [start] is not set,
-        the last [len] bytes of the file are downloaded.  Default: download
-        the entire file (or everything after the position [start],
-        including [start]).  If [start <= 0], the metadata will be present
-        but the stream will be empty. *)
+      the last [len] bytes of the file are downloaded.  Default: download
+      the entire file (or everything after the position [start],
+      including [start]).  If [start <= 0], the metadata will be present
+      but the stream will be empty. *)
 
   val copy_ref : t -> string -> copy_ref Lwt.t
+  (** [copy_ref t name] return a JSON dictionnary containing a copy_ref to
+      the specified file and the link's expiration date. copy_ref can be used
+      to copy that file to another user's Dropbox by passing it in as the
+      from_copy_ref parameter on /fileops/copy. *)
   ;;
 end
 
