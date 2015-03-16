@@ -20,6 +20,7 @@ type error =
   | Try_later of int option * error_description
   | Quota_exceeded of error_description
   | Server_error of int * error_description
+  | Not_found404 of error_description
   | Unsupported_media_type of error_description
 
 (* FIXME: Do we want to render the values as strings closer to OCaml? *)
@@ -41,8 +42,11 @@ let string_of_error = function
      "Quota_exceeded " ^ Json.string_of_error_description e
   | Server_error (st, e) ->
      sprintf "Server_error(%i, %s)" st (Json.string_of_error_description e)
+  | Not_found404 e ->
+     "Not_found404 " ^ Json.string_of_error_description e
   | Unsupported_media_type e ->
      "Unsupported_media_type " ^ Json.string_of_error_description e
+
 exception Error of error
 
 let () =
@@ -72,6 +76,7 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Not_found -> fail_error body (fun e -> Not_found404 e)
   | `Unsupported_media_type -> fail_error body 
                                (fun e -> Unsupported_media_type e)
   | _ -> k r
@@ -351,13 +356,17 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.of_string
       ("https://api-content.dropbox.com/1/thumbnails/auto/" ^ fn) in
     let param = ("format",[format]) :: [] in
-    let param = match size with
+    let param = if List.mem size ["xs";"s";"m";"l";"xl"] then
+                  ("size",[size]) :: param
+                else
+                  invalid_arg "Size must be xs, s, m, l or xl" in
+          (** match size with
       | "xs" -> ("size",["xs"]) :: param
       | "s" -> ("size",["s"]) :: param
       | "m" -> ("size",["m"]) :: param
       | "l" -> ("size",["l"]) :: param
       | "xl" -> ("size",["xl"]) :: param
-      | _ -> invalid_arg "Size must be xs, s, m, l or xl" in
+      | _ -> invalid_arg "Size must be xs, s, m, l or xl" in *)
     let u = Uri.with_query u param in
     Client.get ~headers u
     >>= check_errors_404 (if must_download then stream_of_file
