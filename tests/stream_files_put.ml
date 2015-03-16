@@ -12,9 +12,10 @@ let upload t fn =
     | 0 -> return(None)
     | a -> return(Some (String.sub buffer 0 a)) in
   let stream =Lwt_stream.from read in
-  D.stream_files_put t fn size stream >>= fun m ->
-  Lwt_unix.close fd >>= fun () -> Lwt_io.printlf "Sended: %s\nMetadata: %s\n"
-  fn (Dropbox_j.string_of_metadata m)
+  D.stream_files_put t fn size stream
+  >>= fun m -> Lwt_unix.close fd
+  >>= fun () -> Lwt_io.printlf "Sended: %s\nMetadata: \n%s"
+                fn (Dropbox_j.string_of_metadata m)
 
 let main t args =
   match args with

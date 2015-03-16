@@ -346,9 +346,8 @@ module Make(Client: Cohttp_lwt.Client) = struct
     (* let headers = headers t in *)
     let headers = Cohttp.Header.add (headers t)
       "Content-Length" (string_of_int len) in
-    let u =
-      Uri.of_string("https://api-content.dropbox.com/" ^
-                      "1/files_put/auto/" ^ fn) in
+    let u = Uri.of_string("https://api-content.dropbox.com\
+                           /1/files_put/auto/" ^ fn) in
     let param = ("overwrite", [string_of_bool overwrite]) ::
       ("autorename", [string_of_bool autorename]) :: [] in
     let param = match locale with
@@ -370,7 +369,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       "Content-Length" (string_of_int len) in *)
     let u =
       Uri.of_string("https://api-content.dropbox.com\
-                      /1/files_put/auto/" ^ fn) in
+                     /1/files_put/auto/" ^ fn) in
     let param = ("overwrite", [string_of_bool overwrite]) ::
       ("autorename", [string_of_bool autorename]) :: [] in
     let param = match locale with
@@ -403,7 +402,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
   let commit_chunked_upload t ?locale ?(overwrite=true) ?parent_rev
                             ?(autorename=true) upload_id fn =
     let u = Uri.of_string("https://api-content.dropbox.com/1\
-                            /commit_chunked_upload/auto/" ^ fn) in
+                           /commit_chunked_upload/auto/" ^ fn) in
     let param = ("overwrite",[string_of_bool overwrite]) ::
       ("autorename",[string_of_bool autorename]) ::
       ("upload_id",[upload_id]) :: [] in

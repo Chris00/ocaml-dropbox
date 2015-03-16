@@ -7,9 +7,10 @@ let upload t fn =
   let buffer = String.create size in
   Lwt_unix.read fd buffer 0 size >>= fun _ ->
   let stream =Cohttp_lwt_body.of_string buffer in
-  D.cohttp_body_files_put t fn size stream >>= fun m ->
-  Lwt_unix.close fd >>= fun () -> Lwt_io.printlf "Sended: %s\nMetadata: %s\n"
-  fn (Dropbox_j.string_of_metadata m)
+  D.cohttp_body_files_put t fn size stream
+  >>= fun m -> Lwt_unix.close fd
+  >>= fun () -> Lwt_io.printlf "Sended: %s\nMetadata: %s\n"
+                fn (Dropbox_j.string_of_metadata m)
 
 let main t args =
   match args with
