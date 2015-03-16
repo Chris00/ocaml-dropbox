@@ -20,6 +20,7 @@ type error =
   | Try_later of int option * error_description
   | Quota_exceeded of error_description
   | Server_error of int * error_description
+  | Not_found404 of error_description
 
 (* FIXME: Do we want to render the values as strings closer to OCaml? *)
 let string_of_error = function
@@ -40,6 +41,8 @@ let string_of_error = function
      "Quota_exceeded " ^ Json.string_of_error_description e
   | Server_error (st, e) ->
      sprintf "Server_error(%i, %s)" st (Json.string_of_error_description e)
+  | Not_found404 e ->
+     "Not_found404 " ^ Json.string_of_error_description e
 
 exception Error of error
 
@@ -70,6 +73,7 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Not_found -> fail_error body (fun e -> Not_found404 e)
   | _ -> k r
 
 let check_errors =
@@ -174,15 +178,15 @@ module type S = sig
       modified: Date.t;
       client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
-      contents: metadata list;
-    }
+      contents: metadata list }
+
   type revisions = metadata list
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
-  val revisions : t -> ?rev_limit: int -> ?locale: string ->
-                  string -> revisions Lwt.t
+  val revisions : t -> ?rev_limit: int -> ?locale: string -> string ->
+                  revisions Lwt.t
 
   val restore : t -> ?locale: string -> string -> string -> metadata Lwt.t
 
@@ -333,9 +337,9 @@ module Make(Client: Cohttp_lwt.Client) = struct
       | Some l -> ("locale",[l]) :: param
       | None -> param in
     let u = Uri.with_query u param in
-    Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
-    Cohttp_lwt_body.to_string body >>= fun body ->
-    return(Json.revisions_of_string body)
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.revisions_of_string body)
 
   let restore t ?locale rev fn =
     let u = Uri.of_string("https://api.dropbox.com/1/restore/auto/" ^ fn) in
@@ -344,7 +348,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       | Some l -> ("locale",[l]) :: param
       | None -> param in
     let u = Uri.with_query u param in
-    Client.post ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
-    Cohttp_lwt_body.to_string body >>= fun body ->
-    return(Json.metadata_of_string body)
+    Client.post ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.metadata_of_string body)
 end

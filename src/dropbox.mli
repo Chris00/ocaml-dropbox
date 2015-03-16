@@ -27,6 +27,7 @@ type error =
   | Quota_exceeded of error_description
   (** User is over Dropbox storage quota. *)
   | Server_error of int * error_description
+  | Not_found404 of error_description
 
 val string_of_error : error -> string
 
@@ -266,7 +267,9 @@ module type S = sig
           level. All paths returned are relative to this root level. *)
       contents: metadata list;
     }
-  type revisions = metadata list
+
+  type revisions = metadata list (** The list of the metadata for the
+                                     previous revisions of a file *)
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -274,17 +277,38 @@ module type S = sig
       its content.  [None] indicates that the file does not exists.
 
       @param start The first byte of the file to download.  A negative
-        number is interpreted as [0].  Default: [0].
+      number is interpreted as [0].  Default: [0].
       @param len The number of bytes to download.  If [start] is not set,
-        the last [len] bytes of the file are downloaded.  Default: download
-        the entire file (or everything after the position [start],
-        including [start]).  If [start <= 0], the metadata will be present
-        but the stream will be empty. *)
+      the last [len] bytes of the file are downloaded.  Default: download
+      the entire file (or everything after the position [start],
+      including [start]).  If [start <= 0], the metadata will be present
+      but the stream will be empty. *)
 
-  val revisions : t -> ?rev_limit: int -> ?locale: string ->
-                  string -> revisions Lwt.t
+  val revisions : t -> ?rev_limit: int -> ?locale: string -> string ->
+                  revisions Lwt.t
+  (** [revisions t name] return the metadata for the previous revisions of
+      a file (in a list of metadata). Only revisions up to thirty days old
+      are available.
+
+      @param rev_limit Default is 10. Max is 1,000. Up to this number of
+      recent revisions will be returned.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales. *)
 
   val restore : t -> ?locale: string -> string -> string -> metadata Lwt.t
+  (** [restore t revision name] return the metadata of the restored file.
+
+      @param rev The revision of the file to restore.
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      Possible errors:
+      404 Unable to find the revision at that path. *)
   ;;
 end
 
