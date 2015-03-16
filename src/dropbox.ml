@@ -174,8 +174,8 @@ module type S = sig
       modified: Date.t;
       client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
-      contents: metadata list
-    }
+      contents: metadata list }
+
   type search = metadata list
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
@@ -337,7 +337,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       | Some l -> ("locale",[l]) :: param
       | None -> param in
     let u = Uri.with_query u param in
-    Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
-    Cohttp_lwt_body.to_string body >>= fun body ->
-    return(Json.search_of_string body)
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.search_of_string body)
 end
