@@ -149,6 +149,15 @@ module type S = sig
 
   val info : ?locale: string -> t -> info Lwt.t
 
+ type photo_info = Dropbox_t.photo_info
+                 = { time_taken: Date.t option;
+                     lat_long: float list }
+
+  type video_info = Dropbox_t.video_info
+                  = { time_taken: Date.t option;
+                      duration: float;
+                      lat_long: float list }
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       bytes: int;
@@ -159,15 +168,22 @@ module type S = sig
       rev: string;
       hash: string;
       thumb_exists: bool;
+      photo_info: photo_info option;
+      video_info: video_info option;
       icon: string;
       modified: Date.t;
-      client_mtime: Date.t;
-      root: [ `Dropbox | `App_folder ]
-    }
+      client_mtime: Date.t option;
+      root: [ `Dropbox | `App_folder ];
+      contents: metadata list }
+
+  type search = metadata list
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
+  val search : t -> ?file_limit: int -> ?include_deleted: bool ->
+               ?locale: string -> ?include_membership: bool ->
+               ?fn: string -> string -> search Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -307,4 +323,21 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.get ~headers u
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
+
+  let search t ?(file_limit=1000) ?(include_deleted=false)
+             ?locale ?(include_membership=false) ?fn query =
+    let u = match fn with
+      | Some fn -> Uri.of_string("https://api.dropbox.com/1/search/auto/" ^ fn)
+      | None -> Uri.of_string("https://api.dropbox.com/1/search/auto/") in
+    let param = ("include_deleted",[string_of_bool include_deleted]) ::
+                ("include_membership",[string_of_bool include_membership])
+                :: ("file_limit",[string_of_int file_limit]) ::
+                ("query",[query]) :: [] in
+    let param = match locale with
+      | Some l -> ("locale",[l]) :: param
+      | None -> param in
+    let u = Uri.with_query u param in
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.search_of_string body)
 end
