@@ -2,8 +2,8 @@ open Lwt
 module D = Dropbox_lwt_unix
 
 let upload t fn =
-  Lwt_unix.(openfile fn [O_RDONLY] 0) >>= fun fd ->
-  Lwt_unix.stat fn >>= fun u -> return(u.Lwt_unix.st_size) >>= fun size ->
+  Lwt_unix.(openfile fn [O_RDONLY] 0) >>= fun fd -> Lwt_unix.stat fn
+  >>= fun u -> return(u.Lwt_unix.st_size) >>= fun size ->
   let buffer = String.create size in
   Lwt_unix.read fd buffer 0 size >>= fun _ ->
   let stream =Cohttp_lwt_body.of_string buffer in

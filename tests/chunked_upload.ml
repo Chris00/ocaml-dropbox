@@ -10,8 +10,8 @@ let create_list i =
 
 let upload t fn =
   (** We first open the file and get its size *)
-  Lwt_unix.(openfile fn [O_RDONLY] 0) >>= fun fd ->
-  Lwt_unix.stat fn >>= fun u -> return(u.Lwt_unix.st_size) >>= fun size ->
+  Lwt_unix.(openfile fn [O_RDONLY] 0) >>= fun fd -> Lwt_unix.stat fn
+  >>= fun u -> return(u.Lwt_unix.st_size) >>= fun size ->
   let lgth_buff = 4194304 in
   (** If the size of the file is < 4Mo, we use cohttp_body_files_put function,
       otherwise chunked_upload function *)
