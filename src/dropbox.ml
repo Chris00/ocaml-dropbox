@@ -389,9 +389,9 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let shared_folders t =
     let u = Uri.of_string("https://api.dropbox.com/1/shared_folders/") in
-    Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
-    Cohttp_lwt_body.to_string body >>= fun body ->
-    return(Json.shared_folders_of_string body)
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.shared_folders_of_string body)
 
   let shared_folder ?shared_folder_id ?(include_membership=true) t =
     let u = match shared_folder_id with
@@ -399,8 +399,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
                  ^ id ^ "?include_membership=" ^ 
                  (string_of_bool include_membership));
     | None -> Uri.of_string("https://api.dropbox.com/1/shared_folders/") in
-    Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
-    Cohttp_lwt_body.to_string body >>= fun body ->
-    return(Json.shared_folder_of_string body)
-
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.shared_folder_of_string body)
 end

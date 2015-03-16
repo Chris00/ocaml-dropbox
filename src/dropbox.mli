@@ -27,10 +27,11 @@ type error =
   | Quota_exceeded of error_description
   (** User is over Dropbox storage quota. *)
   | Server_error of int * error_description
-  (** The folder contents have not changed (relies on hash parameter). *)
+  (** Server error 5xx *)
   | Not_modified of error_description
-  (** There are too many file entries to return. *)
+  (** The folder contents have not changed (relies on hash parameter). *)
   | Not_acceptable of error_description
+  (** There are too many file entries to return. *)
 
 val string_of_error : error -> string
 
@@ -245,7 +246,8 @@ module type S = sig
 
   type shared_folders = shared_folder list
 
-  type s_f_for_metadata (** the shared folder for metadata *)
+  (** the shared folder for metadata *)
+  type s_f_for_metadata
     = Dropbox_t.s_f_for_metadata
     = { id: int;
         membership: user_info list option }
