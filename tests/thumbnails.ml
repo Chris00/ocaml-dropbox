@@ -33,8 +33,6 @@ let download t ?(size="s") ?format fn =
        Lwt_io.printlf "Wrote a thumbnails of %S (%s, %s), %s"
                       fn m.D.size m.D.mime_type
                       (Dropbox.Date.to_string m.D.modified)
-(*   else
-     Lwt_io.printlf "The extension and the format must be the same." *)
 
 let main t args =
   match args with
