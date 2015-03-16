@@ -211,19 +211,19 @@ module type S = sig
 
   type photo_info
     = Dropbox_t.photo_info
-    = { time_taken: Date.t option;
-        lat_long: float list}
+    = { time_taken: Date.t option; (** The creation date of the photo *)
+        lat_long: float list}     (** The GPS coordinates of the photo *)
 
   type video_info
     = Dropbox_t.video_info
-    = { time_taken: Date.t option;
-        duration: float;
-        lat_long: float list }
+    = { time_taken: Date.t option; (** The creation date of the video *)
+        duration: float;           (** The video length in ms *)
+        lat_long: float list }     (** The GPS coordinates of the video *)
 
   type user
     = Dropbox_t.user
-    = { uid: int;
-        display_name: string;
+    = { uid: int; (** The user's unique Dropbox ID *)
+        display_name: string; 
         same_team: bool;
         member_id: string }
 
@@ -233,8 +233,6 @@ module type S = sig
         access_type: string;
         active: bool }
 
-  type membership = user_info list
-
   type shared_folder 
     = Dropbox_t.shared_folder
     = { shared_folder_id: string;
@@ -243,13 +241,14 @@ module type S = sig
         access_type: string;
         shared_link_policy: string;
         owner: user option;
-        groups: user list option;
-        membership: membership }
+        membership: user_info list }
 
-type s_f_for_metadata = Dropbox_t.s_f_for_metadata
-                      = { id: int;
-                          membership: membership option;
-                          groups: user list option}
+  type shared_folders = shared_folder list
+
+  type s_f_for_metadata (** the shared folder for metadata *)
+    = Dropbox_t.s_f_for_metadata
+    = { id: int;
+        membership: user_info list option }
 
   type metadata = Dropbox_t.metadata = {
       size: string;
@@ -300,13 +299,31 @@ type s_f_for_metadata = Dropbox_t.s_f_for_metadata
       (** The root or top-level folder depending on your access
           level. All paths returned are relative to this root level. *)
       contents: metadata list;
+      (** For folders, contents is the list of the metadata of the files
+          contained in this folder. Return nothing if the folder is empty. *)
       shared_folder: s_f_for_metadata option;
+      (** This field will be included for shared folders. The value is a
+          dictionary with the field id. If the include_membership parameter
+          is passed, there will additionally be a membership field and a
+          groups field. See /shared_folders for a sample shared folder
+          response. *)
       read_only: bool;
+      (** For shared folders, this field specifies whether the user has
+          read-only access to the folder. For files within a shared folder,
+          this specifies the read-only status of the parent shared folder. *)
       parent_shared_folder_id: int;
-      modifier: user option;
+      (** For files within a shared folder, this field specifies the ID of
+          the containing shared folder. *)
+      modifier: user option
+      (** For files within a shared folder, this field specifies which user
+          last modified this file. The value is a user dictionary with the
+          fields uid (user ID), display_name, and, if the linked account is
+          a member of a Dropbox for Business team, same_team (whether the
+          user is on the same team as the linked account). If this endpoint
+          is called by a Dropbox for Business app and the user is on that
+          team, a member_id field will also be present in the user dictionary.
+          If the modifying user no longer exists, the value will be null.  *)
     }
-
-  type shared_folders = shared_folder list
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -369,13 +386,27 @@ type s_f_for_metadata = Dropbox_t.s_f_for_metadata
       @param include_membership If true, metadata for a shared folder will
       include a list of members and a list of groups. *)
 
-  val shared_folders : ?shared_folder_id: string -> 
-                      ?include_membership: bool ->
-                      t -> shared_folders Lwt.t
+  val shared_folders : t -> shared_folders Lwt.t
+  (** [shared_folders t] return a list of all shared folders the authenticated
+      user has access to. *)
 
-  val shared_folder : ?shared_folder_id: string -> 
-                      ?include_membership: bool ->
+  val shared_folder : ?shared_folder_id: string -> ?include_membership: bool ->
                       t -> shared_folder Lwt.t
+  (** [shared_folder t] return the metadata about a specific shared_folder
+      (or (not in this case) the list of all shared folders the authenticated
+      user has access to if shared_folder_id is not specified.)
+
+      @param shared_folder The ID of a specific shared folder.
+
+      @param include_membership Required if shared_folder_id is specified.
+      If true, include a list of members and a list of groups for the shared
+      folder.
+
+      Possible errors:
+      400 Returned if the shared folder ID is not valid.
+      403 Returned if this app does not have Full Dropbox or File type
+      permissions, or if the user doesn't have access to the specified
+      shared folder. *)
   ;;
 end
 

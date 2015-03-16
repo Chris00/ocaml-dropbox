@@ -58,20 +58,18 @@ type user_info = { user: user;
                    access_type: string;
                    active: bool }
 
-type membership = user_info list
-
 type shared_folder = { shared_folder_id: string;
                        shared_folder_name: string;
                        path: string;
                        access_type: string;
                        shared_link_policy: string;
                        ?owner: user option;
-                       ?groups: user list option;
-                       ~membership: membership }
+                       ~membership: user_info list }
+
+type shared_folders = shared_folder list
 
 type s_f_for_metadata = { ~id: int;
-                          ?membership: membership option;
-                          ?groups: user list option}
+                          ?membership: user_info list option; }
 
 type metadata = { size: string;
                   bytes: int;
@@ -92,7 +90,4 @@ type metadata = { size: string;
                   ?shared_folder: s_f_for_metadata option;
                   ~read_only: bool;
                   ~parent_shared_folder_id: int;
-                  ?modifier: user option;
-                }
-
-type shared_folders = shared_folder list
+                  ?modifier: user option }

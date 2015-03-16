@@ -177,8 +177,6 @@ module type S = sig
                      access_type: string;
                      active: bool }
 
-  type membership = user_info list
-
   type shared_folder = Dropbox_t.shared_folder
                      = { shared_folder_id: string;
                          shared_folder_name: string;
@@ -186,13 +184,13 @@ module type S = sig
                          access_type: string;
                          shared_link_policy: string;
                          owner: user option;
-                         groups: user list option;
-                         membership: membership }
+                         membership: user_info list }
+
+  type shared_folders = shared_folder list
 
   type s_f_for_metadata = Dropbox_t.s_f_for_metadata
                         = { id: int;
-                            membership: membership option;
-                            groups: user list option}
+                            membership: user_info list option }
 
   type metadata = Dropbox_t.metadata = {
       size: string;
@@ -214,10 +212,7 @@ module type S = sig
       shared_folder: s_f_for_metadata option;
       read_only: bool;
       parent_shared_folder_id: int;
-      modifier: user option;
-    }
-
-  type shared_folders = shared_folder list
+      modifier: user option }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -227,8 +222,7 @@ module type S = sig
                  ?include_media_info: bool -> ?include_membership: bool ->
                  string -> metadata Lwt.t
 
-  val shared_folders : ?shared_folder_id: string -> ?include_membership: bool ->
-                      t -> shared_folders Lwt.t
+  val shared_folders : t -> shared_folders Lwt.t
 
   val shared_folder : ?shared_folder_id: string -> ?include_membership: bool ->
                       t -> shared_folder Lwt.t
@@ -389,21 +383,16 @@ module Make(Client: Cohttp_lwt.Client) = struct
       | Some rev -> ("rev",[rev]) :: param
       | None -> param in
     let u = Uri.with_query u param in
-    Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
-    Cohttp_lwt_body.to_string body >>= fun body ->
-    return(Json.metadata_of_string body)
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.metadata_of_string body)
 
-  let shared_folders ?shared_folder_id ?(include_membership=true) t =
-    let u = match shared_folder_id with
-    | Some id -> Uri.of_string("https://api.dropbox.com/1/shared_folders/"
-                 ^ id ^ "?include_membership=" ^ 
-                 (string_of_bool include_membership));
-    | None -> Uri.of_string("https://api.dropbox.com/1/shared_folders/") in
+  let shared_folders t =
+    let u = Uri.of_string("https://api.dropbox.com/1/shared_folders/") in
     Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
     Cohttp_lwt_body.to_string body >>= fun body ->
     return(Json.shared_folders_of_string body)
 
-  (** problem when using a wrong shared_folder_id *)
   let shared_folder ?shared_folder_id ?(include_membership=true) t =
     let u = match shared_folder_id with
     | Some id -> Uri.of_string("https://api.dropbox.com/1/shared_folders/"
