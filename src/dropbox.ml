@@ -353,7 +353,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       if (root = "auto" || root = "sandbox" || root = "dropbox") then
         ("root",[root]) :: param 
       else 
-        invalid_arg "%s is not a valid root parameter" in
+        invalid_arg "invalid root parameter" in
     let u = Uri.with_query u param in
     Client.post ~headers:(headers t) u >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
@@ -369,7 +369,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       if (root = "auto" || root = "sandbox" || root = "dropbox") then
         ("root",[root]) :: param 
       else 
-        invalid_arg "%s is not a valid root parameter" in
+        invalid_arg "invalid root parameter" in
     let u = Uri.with_query u param in
     Client.post ~headers:(headers t) u >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
@@ -385,7 +385,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       if (root = "auto" || root = "sandbox" || root = "dropbox") then
         ("root",[root]) :: param 
       else 
-        invalid_arg "%s is not a valid root parameter" in
+        invalid_arg "invalid root parameter" in
     let u = Uri.with_query u param in
     Client.post ~headers:(headers t) u >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
@@ -401,7 +401,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       if (root = "auto" || root = "sandbox" || root = "dropbox") then
         ("root",[root]) :: param 
       else 
-        invalid_arg "%s is not a valid root parameter" in
+        invalid_arg "invalid root parameter" in
     let u = Uri.with_query u param in
     Client.post ~headers:(headers t) u >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
