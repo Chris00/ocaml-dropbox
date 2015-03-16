@@ -52,10 +52,10 @@ Executable "delta"
   Install:      false
   CompiledObject: best
 
-Executable "delta_latest_cursor"
+Executable "latest_cursor"
   Build$:       flag(tests)
   Path:         tests
-  MainIs:       delta_latest_cursor.ml
+  MainIs:       latest_cursor.ml
   BuildDepends: dropbox.lwt
   Install:      false
   CompiledObject: best
