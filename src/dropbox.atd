@@ -66,7 +66,10 @@ type shared_folder = { shared_folder_id: string;
                        ?owner: user option;
                        ~membership: user_info list }
 
-type shared_folders = shared_folder list
+type shared_folders = [
+   | Singleton of shared_folder
+   | List of shared_folder list
+   ]
 
 type s_f_for_metadata = { ~id: int;
                           ?membership: user_info list option; }

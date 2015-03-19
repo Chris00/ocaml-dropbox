@@ -244,7 +244,8 @@ module type S = sig
         owner: user option;
         membership: user_info list }
 
-  type shared_folders = shared_folder list
+  type shared_folders = [ `Singleton of shared_folder
+                        | `List of shared_folder list ]
 
   (** the shared folder for metadata *)
   type s_f_for_metadata
@@ -388,12 +389,9 @@ module type S = sig
       @param include_membership If true, metadata for a shared folder will
       include a list of members and a list of groups. *)
 
-  val shared_folders : t -> shared_folders Lwt.t
-  (** [shared_folders t] return a list of all shared folders the authenticated
-      user has access to. *)
 
   val shared_folder : ?shared_folder_id: string -> ?include_membership: bool ->
-                      t -> shared_folder Lwt.t
+                      t -> shared_folders Lwt.t
   (** [shared_folder t] return the metadata about a specific shared_folder
       (or (not in this case) the list of all shared folders the authenticated
       user has access to if shared_folder_id is not specified.)
@@ -409,6 +407,8 @@ module type S = sig
       403 Returned if this app does not have Full Dropbox or File type
       permissions, or if the user doesn't have access to the specified
       shared folder. *)
+
+
   ;;
 end
 
