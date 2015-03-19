@@ -1,38 +1,49 @@
 open Lwt
+open Dropbox_t
 module D = Dropbox_lwt_unix
 
 (** If there is one entry, we call thumbnails with the path as Sys.argv.(0).
     If there is two entries, we call thumbnails with the path as
-       Sys.argv.(0) and the param format as the second.
-    If there is three entries, we add the param size as the third argument *)
+       Sys.argv.(0) and the param size as the second.
+    If there is three entries, we add the param format as the third argument *)
 
-let download t ?(size="s") ?format fn =
+let string_to_size = function
+  | "xs" -> `Xs
+  | "s" -> `S
+  | "m" -> `M
+  | "l" -> `L
+  | "xl" -> `Xl
+  | _ -> invalid_arg "Size must be xs, s, m, l or xl."
+
+let string_to_format = function
+  | "jpeg" -> `Jpeg
+  | "jpg" -> `Jpeg
+  | "png" -> `Png
+  | _ -> invalid_arg "Format must be jpeg or png."
+
+
+let download t ?format ?(size=`S) fn =
   let y = String.index fn '.' in
   let extension = String.sub fn (y + 1) (String.length fn - y - 1) in
-  (** Si le format que l'on a envoyé est égale à l'extension de l'image alors
-      ok. Si elle est différente, pour éviter les conflits, on renvoie
-      l'extension de l'image. Enfin, rien n'était spécifié dans format (un
-      seul argument, alors on met "" par défaut (les mauvaises extensions
-      sont gérées par 404. *)
-  let format = match format with
-    | Some f -> if extension = f then f
-                else extension
-    | None -> "" in (** .jpg files does work *)
-  D.thumbnails t ~size ~format fn >>= function
+  let send_thumbnails = match format with
+    | None -> D.thumbnails t ~size ~format:(string_to_format extension)  fn
+    | Some f -> let format = if f = extension then f
+                             else extension in
+                D.thumbnails t ~size ~format:(string_to_format format) fn in
+  send_thumbnails >>= function
     | None -> Lwt_io.printlf "No image named %S." fn
     | Some(m, stream) ->
-       (* Save stream to the disk *)
-       let fname = Filename.basename ("thumbnails_of_" ^ fn) in
-       Lwt_unix.(openfile fname [O_WRONLY; O_CREAT; O_TRUNC] 0o664)
-       >>= fun fd ->
-       let write s =
-         Lwt_unix.write fd s 0 (String.length s) >>= fun _ ->
-         return_unit in
-       Lwt_stream.iter_s write stream >>= fun () ->
-       Lwt_unix.close fd >>= fun () ->
-       Lwt_io.printlf "Wrote a thumbnails of %S (%s, %s), %s"
-                      fn m.D.size m.D.mime_type
-                      (Dropbox.Date.to_string m.D.modified)
+  (* Save stream to the disk *)
+  let fname = Filename.basename ("thumbnails_of_" ^ fn) in
+  Lwt_unix.(openfile fname [O_WRONLY; O_CREAT; O_TRUNC] 0o664)
+  >>= fun fd ->
+  let write s =
+    Lwt_unix.write fd s 0 (String.length s) >>= fun _ ->
+    return_unit in
+  Lwt_stream.iter_s write stream >>= fun () ->
+  Lwt_unix.close fd >>= fun () ->
+  Lwt_io.printlf "Wrote a thumbnails of %S"
+                  fn
 
 let main t args =
   match args with
@@ -41,10 +52,11 @@ let main t args =
            download t (List.hd a)
 	 else if List.length a = 2 then
            match List.nth a 1, List.nth a 0 with
-           | fn, format -> download t ~format fn
+           | fn, size -> download t ~size:(string_to_size size) fn
          else if List.length a = 3 then
            match List.nth a 2, List.nth a 1, List.nth a 0 with
-           | fn, format, size -> download t ~format ~size fn
+           | fn, size, format -> download t ~format
+                                 ~size:(string_to_size size) fn
 	 else
            Lwt_io.printlf "Thumbnails function take at least 3 arguments."
 

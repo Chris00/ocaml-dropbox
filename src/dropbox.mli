@@ -268,6 +268,9 @@ module type S = sig
           level. All paths returned are relative to this root level. *)
       contents: metadata list;
     }
+  type size =  [ `Xs | `S | `M | `L | `Xl ]
+
+  type format = [ `Jpeg | `Png ]
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -283,7 +286,7 @@ module type S = sig
       including [start]).  If [start <= 0], the metadata will be present
       but the stream will be empty. *)
 
-  val thumbnails : t -> ?format: string -> ?size: string ->
+  val thumbnails : t -> ?format: format -> ?size: size ->
                    ?start: int -> ?len: int ->string ->
                    (metadata * string Lwt_stream.t) option Lwt.t
   (** [thumbnails t path] return the metadata for the thumbnails and a

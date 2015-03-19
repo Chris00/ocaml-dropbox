@@ -158,9 +158,9 @@ module type S = sig
 
   val info : ?locale: string -> t -> info Lwt.t
 
- type photo_info = Dropbox_t.photo_info
-                 = { time_taken: Date.t option;
-                     lat_long: float list }
+  type photo_info = Dropbox_t.photo_info
+                  = { time_taken: Date.t option;
+                      lat_long: float list }
 
   type video_info = Dropbox_t.video_info
                   = { time_taken: Date.t option;
@@ -185,11 +185,14 @@ module type S = sig
       root: [ `Dropbox | `App_folder ];
       contents: metadata list
     }
+  type size =  [ `Xs | `S | `M | `L | `Xl ]
+
+  type format = [ `Jpeg | `Png ]
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
-  val thumbnails : t -> ?format: string -> ?size: string ->
+  val thumbnails : t -> ?format: format -> ?size: size ->
                    ?start: int -> ?len: int ->string ->
                    (metadata * string Lwt_stream.t) option Lwt.t
 
@@ -333,7 +336,8 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
 
-  let thumbnails t ?(format="jpeg") ?(size="s") ?start ?len fn =
+
+  let thumbnails t ?(format=`Jpeg) ?(size=`S) ?start ?len fn =
     let headers = headers t in
     let headers, must_download = match start, len with
       | Some s, Some l ->
@@ -355,18 +359,15 @@ module Make(Client: Cohttp_lwt.Client) = struct
       | None, None -> headers, true in
     let u = Uri.of_string
       ("https://api-content.dropbox.com/1/thumbnails/auto/" ^ fn) in
-    let param = ("format",[format]) :: [] in
-    let param = if List.mem size ["xs";"s";"m";"l";"xl"] then
-                  ("size",[size]) :: param
-                else
-                  invalid_arg "Size must be xs, s, m, l or xl" in
-          (** match size with
-      | "xs" -> ("size",["xs"]) :: param
-      | "s" -> ("size",["s"]) :: param
-      | "m" -> ("size",["m"]) :: param
-      | "l" -> ("size",["l"]) :: param
-      | "xl" -> ("size",["xl"]) :: param
-      | _ -> invalid_arg "Size must be xs, s, m, l or xl" in *)
+    let param = match size with
+      | `Xs -> [("size",["xs"])]
+      | `S -> [("size",["s"])]
+      | `M -> [("size",["m"])]
+      | `L -> [("size",["l"])]
+      | `Xl -> [("size",["xl"])] in
+    let param = match format with
+      | `Jpeg -> ("format",["jpeg"]) :: param
+      | `Png -> ("format",["png"]) :: param in
     let u = Uri.with_query u param in
     Client.get ~headers u
     >>= check_errors_404 (if must_download then stream_of_file
