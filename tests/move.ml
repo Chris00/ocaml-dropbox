@@ -19,8 +19,8 @@ let main t args =
                                           (string_to_root root)
                                         >>= fun m -> Lwt_io.printlf "%s"
                                         (Dropbox_j.string_of_metadata m)
-         else Lwt_io.printf ("The function must take on command line \
-                              three arguments: from_path, to_path and root.\n")
+         else Lwt_io.printf "The function must take on command line \
+                             three arguments: from_path, to_path and root.\n"
 
 let () =
   Common.run main

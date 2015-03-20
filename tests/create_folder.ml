@@ -18,8 +18,8 @@ let main t args =
            | path, root -> D.create_folder t path (string_to_root root)
                            >>= fun m -> Lwt_io.printlf "%s"
                                         (Dropbox_j.string_of_metadata m)
-         else Lwt_io.printf ("The function must take on command line \
-                              only two arguments: the root and the path.\n")
+         else Lwt_io.printf "The function must take on command line \
+                             only two arguments: the root and the path.\n"
 
 let () =
   Common.run main
