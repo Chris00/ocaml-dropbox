@@ -186,8 +186,7 @@ module type S = sig
                          owner: user option;
                          membership: user_info list }
 
-  type shared_folders = [ `Singleton of shared_folder
-                        | `List of shared_folder list ]
+  type shared_folders = shared_folder list
 
   type s_f_for_metadata = Dropbox_t.s_f_for_metadata
                         = { id: int;
@@ -224,7 +223,8 @@ module type S = sig
                  string -> metadata Lwt.t
 
   val shared_folder : ?shared_folder_id: string -> ?include_membership: bool
-                      -> t -> shared_folders Lwt.t
+                      -> t -> [ `Singleton of shared_folder
+                              | `List of shared_folders ]  Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -394,5 +394,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     | None -> Uri.of_string("https://api.dropbox.com/1/shared_folders/") in
     Client.get ~headers:(headers t) u >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.shared_folders_of_string body)
+    >>= fun body -> match shared_folder_id with
+      | Some _ -> return(`Singleton (Json.shared_folder_of_string body))
+      | None -> return(`List (Json.shared_folders_of_string body))
 end
