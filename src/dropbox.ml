@@ -331,7 +331,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let shares t ?locale ?(short_url=false) fn =
     let u = Uri.of_string("https://api.dropbox.com/1/shares/auto/" ^ fn) in
-    let param = ("short_url",[string_of_bool short_url]) :: [] in
+    let param = [("short_url",[string_of_bool short_url])] in
     let param = match locale with
       | Some l -> ("locale",[l]) :: param
       | None -> param in
