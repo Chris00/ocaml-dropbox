@@ -394,8 +394,8 @@ module type S = sig
       parameter, as some network infrastructure does not support long timeouts.
 
       Possible errors:
-      400 One or more parameters were invalid. The response will be of the
-      form {"error": "<reason>"}. *)
+      Invalid_arg One or more parameters were invalid. The response will be
+      of the form {"error": "<reason>"}. *)
   ;;
 end
 

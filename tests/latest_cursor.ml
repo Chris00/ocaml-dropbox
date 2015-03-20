@@ -14,7 +14,7 @@ let main t args =
   | a -> if List.length a = 1 then
            D.latest_cursor ~path_prefix:(List.hd a) t >>= fun delta ->
            Lwt_io.printlf "%s" (Dropbox_j.string_of_delta delta)
-         else Lwt_io.printf ("The function must take the arguments like above")
-	    
+         else Lwt_io.printf "The function must take the arguments like above"
+
 let () =
   Common.run main

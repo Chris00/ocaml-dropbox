@@ -20,8 +20,8 @@ let main t args =
            match List.nth a 1, List.nth a 0 with
            | cursor, path_prefix -> D.delta t ~cursor ~path_prefix
                                     >>= fun delta -> Lwt_io.printlf "%s"
-                                               (Dropbox_j.string_of_delta delta)
-         else Lwt_io.printf ("The function must take the arguments like above")
-	    
+                                          (Dropbox_j.string_of_delta delta)
+         else Lwt_io.printf "The function must take the arguments like above"
+
 let () =
   Common.run main

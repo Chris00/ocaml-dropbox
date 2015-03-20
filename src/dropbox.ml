@@ -342,8 +342,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let delta ?cursor ?locale ?path_prefix ?(include_media_info=false) t =
     let u = Uri.of_string("https://api.dropbox.com/1/delta") in
-    let param = ("include_media_info",[string_of_bool include_media_info])
-         :: [] in
+    let param = [("include_media_info",[string_of_bool include_media_info])] in
     let param = match cursor with
       | Some cursor -> ("cursor",[cursor]) :: param
       | None -> param in
@@ -360,8 +359,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let latest_cursor ?path_prefix ?(include_media_info=false) t =
     let u = Uri.of_string("https://api.dropbox.com/1/delta/latest_cursor") in
-    let param = ("include_media_info",[string_of_bool include_media_info])
-         :: [] in
+    let param = [("include_media_info",[string_of_bool include_media_info])] in
     let param = match path_prefix with
       | Some path_prefix -> ("path_prefix",[path_prefix]) :: param
       | None -> param in
@@ -373,7 +371,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
   let longpoll_delta t ?(timeout=30) cursor =
     let u = Uri.of_string("https://api-notify.dropbox.com/1/longpoll_delta") in
     let param = ("timeout",[string_of_int timeout])
-                   :: ("cursor",[cursor]) :: [] in
+                :: ("cursor",[cursor]) :: [] in
     let u = Uri.with_query u param in
     Client.get ~headers:(headers t) u >>= check_errors
     >>= fun(_, body) -> Cohttp_lwt_body.to_string body
