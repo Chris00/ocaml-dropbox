@@ -27,6 +27,11 @@ type error =
   | Quota_exceeded of error_description
   (** User is over Dropbox storage quota. *)
   | Server_error of int * error_description
+  (** Server error 5xx *)
+  | Not_modified of error_description
+  (** The folder contents have not changed (relies on hash parameter). *)
+  | Not_acceptable of error_description
+  (** There are too many file entries to return. *)
 
 val string_of_error : error -> string
 
@@ -205,6 +210,48 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.  *)
 
+  type photo_info
+    = Dropbox_t.photo_info
+    = { time_taken: Date.t option; (** The creation date of the photo *)
+        lat_long: float list}     (** The GPS coordinates of the photo *)
+
+  type video_info
+    = Dropbox_t.video_info
+    = { time_taken: Date.t option; (** The creation date of the video *)
+        duration: float;           (** The video length in ms *)
+        lat_long: float list }     (** The GPS coordinates of the video *)
+
+  type user
+    = Dropbox_t.user
+    = { uid: int; (** The user's unique Dropbox ID *)
+        display_name: string; 
+        same_team: bool;
+        member_id: string }
+
+  type user_info 
+    = Dropbox_t.user_info
+    = { user: user;
+        access_type: string;
+        active: bool }
+
+  type shared_folder 
+    = Dropbox_t.shared_folder
+    = { shared_folder_id: string;
+        shared_folder_name: string;
+        path: string;
+        access_type: string;
+        shared_link_policy: string;
+        owner: user option;
+        membership: user_info list }
+
+  type shared_folders = shared_folder list
+
+  (** the shared folder for metadata *)
+  type s_f_for_metadata
+    = Dropbox_t.s_f_for_metadata
+    = { id: int;
+        membership: user_info list option }
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       (** A human-readable description of the file size (translated by
@@ -227,6 +274,15 @@ module type S = sig
       thumb_exists: bool;
       (** True if the file is an image that can be converted to a
           thumbnail via the {!thumbnails} call. *)
+      photo_info: photo_info option;
+      (** Only returned when the include_media_info parameter is true and the
+          file is an image. A dictionary that includes the creation time
+          (time_taken) and the GPS coordinates (lat_long). *)
+      video_info: video_info option;
+      (** Only returned when the include_media_info parameter is true and the
+          file is a video. A dictionary that includes the creation time
+          (time_taken), the GPS coordinates (lat_long), and the length of the
+          video in milliseconds (duration). *)
       icon: string;
       (** The name of the icon used to illustrate the file type in Dropbox's
           {{:https://www.dropbox.com/static/images/dropbox-api-icons.zip}icon
@@ -234,7 +290,7 @@ module type S = sig
       modified: Date.t;
       (** The last time the file was modified on Dropbox (not included
           for the root folder).  *)
-      client_mtime: Date.t;
+      client_mtime: Date.t option;
       (** For files, this is the modification time set by the desktop
           client when the file was added to Dropbox.  Since this time
           is not verified (the Dropbox server stores whatever the
@@ -244,6 +300,31 @@ module type S = sig
       root: [ `Dropbox | `App_folder ];
       (** The root or top-level folder depending on your access
           level. All paths returned are relative to this root level. *)
+      contents: metadata list;
+      (** For folders, contents is the list of the metadata of the files
+          contained in this folder. Return nothing if the folder is empty. *)
+      shared_folder: s_f_for_metadata option;
+      (** This field will be included for shared folders. The value is a
+          dictionary with the field id. If the include_membership parameter
+          is passed, there will additionally be a membership field and a
+          groups field. See /shared_folders for a sample shared folder
+          response. *)
+      read_only: bool;
+      (** For shared folders, this field specifies whether the user has
+          read-only access to the folder. For files within a shared folder,
+          this specifies the read-only status of the parent shared folder. *)
+      parent_shared_folder_id: int;
+      (** For files within a shared folder, this field specifies the ID of
+          the containing shared folder. *)
+      modifier: user option
+      (** For files within a shared folder, this field specifies which user
+          last modified this file. The value is a user dictionary with the
+          fields uid (user ID), display_name, and, if the linked account is
+          a member of a Dropbox for Business team, same_team (whether the
+          user is on the same team as the linked account). If this endpoint
+          is called by a Dropbox for Business app and the user is on that
+          team, a member_id field will also be present in the user dictionary.
+          If the modifying user no longer exists, the value will be null.  *)
     }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
@@ -252,13 +333,81 @@ module type S = sig
       its content.  [None] indicates that the file does not exists.
 
       @param start The first byte of the file to download.  A negative
-        number is interpreted as [0].  Default: [0].
-      @param len The number of bytes to download.  If [start] is not set,
-        the last [len] bytes of the file are downloaded.  Default: download
-        the entire file (or everything after the position [start],
-        including [start]).  If [start <= 0], the metadata will be present
-        but the stream will be empty. *)
+      number is interpreted as [0].  Default: [0].
 
+      @param len The number of bytes to download.  If [start] is not set,
+      the last [len] bytes of the file are downloaded.  Default: download
+      the entire file (or everything after the position [start],
+      including [start]).  If [start <= 0], the metadata will be present
+      but the stream will be empty. *)
+
+  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: string ->
+                 ?include_deleted: bool -> ?rev: string -> ?locale: string ->
+                 ?include_media_info: bool -> ?include_membership: bool ->
+                 string -> metadata Lwt.t
+  (** [metadata t name] return the metadata for the file or the folder and
+      its files if the parameter list is set to "true"
+
+      @param file_limit Default is 10,000 (max is 25,000). When listing a
+      folder, the service won't report listings containing more than the
+      specified amount of files and will instead respond with a 406
+      (Not Acceptable) status response.
+
+      @param hash Each call to /metadata on a folder will return a hash field,
+      generated by hashing all of the metadata contained in that response. On
+      later calls to /metadata, you should provide that value via this parameter
+      so that if nothing has changed, the response will be a 304 (Not Modified)
+      status code instead of the full, potentially very large, folder listing.
+      This parameter is ignored if the specified path is associated with a file
+      or if list=false.
+
+      @param list The strings true and false are valid values. true is the
+      default. If true, the folder's metadata will include a contents field
+      with a list of metadata entries for the contents of the folder. If false,
+      the contents field will be omitted.
+
+      @param include_deleted  Only applicable when list is set. If this
+      parameter is set to true, then contents will include the metadata of
+      deleted children. Note that the target of the metadata call is always
+      returned even when it has been deleted (with is_deleted set to true)
+      regardless of this flag.
+
+      @param rev If you include a particular revision number, then only the
+      metadata for that revision will be returned.
+
+      @param locale The metadata returned will have its size field translated
+      based on the given locale. For more information see
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation}.
+
+      @param include_media_info If true, each file will include a photo_info
+      dictionary for photos and a video_info dictionary for videos with
+      additional media info. If the data isn't available yet, the string
+      pending will be returned instead of a dictionary.
+
+      @param include_membership If true, metadata for a shared folder will
+      include a list of members and a list of groups. *)
+
+
+  val shared_folders : ?shared_folder_id: string -> ?include_membership: bool ->
+                      t -> [ `Singleton of shared_folder
+                           | `List of shared_folders ] Lwt.t
+  (** [shared_folder t] return the metadata about a specific shared_folder
+      or the list of all shared folders the authenticated
+      user has access to if shared_folder_id is not specified.)
+
+      @param shared_folder The ID of a specific shared folder.
+
+      @param include_membership Required if shared_folder_id is specified.
+      If true, include a list of members and a list of groups for the shared
+      folder.
+
+      Possible errors:
+      Invalid_arg Returned if the shared folder ID is not valid.
+
+      Invalid_oauth Returned if this app does not have Full Dropbox or File type
+      permissions, or if the user doesn't have access to the specified
+      shared folder. *)
   ;;
 end
 
