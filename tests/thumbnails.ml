@@ -1,5 +1,4 @@
 open Lwt
-open Dropbox_t
 module D = Dropbox_lwt_unix
 
 (** If there is one entry, we call thumbnails with the path as Sys.argv.(0).
@@ -22,14 +21,16 @@ let string_to_format = function
   | _ -> invalid_arg "Format must be jpeg or png."
 
 
-let download t ?format ?(size=`S) fn =
+let download t ?format ?(size="s") fn =
   let y = String.index fn '.' in
   let extension = String.sub fn (y + 1) (String.length fn - y - 1) in
   let send_thumbnails = match format with
-    | None -> D.thumbnails t ~size ~format:(string_to_format extension)  fn
-    | Some f -> let format = if f = extension then f
-                             else extension in
-                D.thumbnails t ~size ~format:(string_to_format format) fn in
+  (** if the format of .png image is not specified, it will return a wrong
+      thumbnail *)
+    | None -> D.thumbnails t ~size:(string_to_size size)
+                           ~format:(string_to_format extension)  fn
+    | Some f -> D.thumbnails t ~size:(string_to_size size)
+                             ~format:(string_to_format f) fn in
   send_thumbnails >>= function
     | None -> Lwt_io.printlf "No image named %S." fn
     | Some(m, stream) ->
@@ -42,8 +43,7 @@ let download t ?format ?(size=`S) fn =
     return_unit in
   Lwt_stream.iter_s write stream >>= fun () ->
   Lwt_unix.close fd >>= fun () ->
-  Lwt_io.printlf "Wrote a thumbnails of %S"
-                  fn
+  Lwt_io.printlf "Wrote a thumbnails of %S" fn
 
 let main t args =
   match args with
@@ -52,13 +52,13 @@ let main t args =
            download t (List.hd a)
 	 else if List.length a = 2 then
            match List.nth a 1, List.nth a 0 with
-           | fn, size -> download t ~size:(string_to_size size) fn
+           | fn, size -> download t ~size fn
          else if List.length a = 3 then
            match List.nth a 2, List.nth a 1, List.nth a 0 with
            | fn, size, format -> download t ~format
-                                 ~size:(string_to_size size) fn
+                                 ~size fn
 	 else
-           Lwt_io.printlf "Thumbnails function take at least 3 arguments."
+           Lwt_io.printlf "Thumbnails function take a maximum of 3 arguments."
 
 let () =
   Common.run main

@@ -268,9 +268,6 @@ module type S = sig
           level. All paths returned are relative to this root level. *)
       contents: metadata list;
     }
-  type size =  [ `Xs | `S | `M | `L | `Xl ]
-
-  type format = [ `Jpeg | `Png ]
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -285,6 +282,11 @@ module type S = sig
       the entire file (or everything after the position [start],
       including [start]).  If [start <= 0], the metadata will be present
       but the stream will be empty. *)
+
+
+  type size =  [ `Xs | `S | `M | `L | `Xl ]
+
+  type format = [ `Jpeg | `Png ]
 
   val thumbnails : t -> ?format: format -> ?size: size ->
                    ?start: int -> ?len: int ->string ->
@@ -303,9 +305,11 @@ module type S = sig
       xs (32x32),s (64x64), m (128x128), l (640x480), xl (1024x768).
 
       Possible errors:
-      404 The file path wasn't found or the file extension doesn't allow
-      conversion to a thumbnail.
-      415 The image is invalid and cannot be converted to a thumbnail. *)
+      Not_found404 The file path wasn't found or the file extension doesn't
+      allow conversion to a thumbnail.
+
+      Unsupported_media_type The image is invalid and cannot be converted
+      to a thumbnail. *)
 end
 
 module Make(Client: Cohttp_lwt.Client) : S

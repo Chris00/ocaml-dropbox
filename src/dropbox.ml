@@ -185,12 +185,14 @@ module type S = sig
       root: [ `Dropbox | `App_folder ];
       contents: metadata list
     }
-  type size =  [ `Xs | `S | `M | `L | `Xl ]
-
-  type format = [ `Jpeg | `Png ]
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
+
+
+  type size =  [ `Xs | `S | `M | `L | `Xl ]
+
+  type format = [ `Jpeg | `Png ]
 
   val thumbnails : t -> ?format: format -> ?size: size ->
                    ?start: int -> ?len: int ->string ->
