@@ -20,6 +20,7 @@ type error =
   | Try_later of int option * error_description
   | Quota_exceeded of error_description
   | Server_error of int * error_description
+  | Not_found404 of error_description
   | Not_acceptable of error_description
 
 (* FIXME: Do we want to render the values as strings closer to OCaml? *)
@@ -41,6 +42,8 @@ let string_of_error = function
      "Quota_exceeded " ^ Json.string_of_error_description e
   | Server_error (st, e) ->
      sprintf "Server_error(%i, %s)" st (Json.string_of_error_description e)
+  | Not_found404 e ->
+     "Not_found404 " ^ Json.string_of_error_description e
   | Not_acceptable e ->
      "Not_acceptable " ^ Json.string_of_error_description e
 
@@ -73,6 +76,7 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Not_found -> fail_error body (fun e -> Not_found404 e)
   | `Not_acceptable -> fail_error body (fun e -> Not_acceptable e)
   | _ -> k r
 
@@ -178,22 +182,23 @@ module type S = sig
       modified: Date.t;
       client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
-      contents: metadata list
-    }
+      contents: metadata list }
+
+  type root_fileops = [ `Auto | `Dropbox | `Sandbox ]  
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
   val copy : t -> ?locale: string -> ?from_copy_ref: string ->
-             ?from_path: string -> string -> string -> metadata Lwt.t
+             ?from_path: string -> string -> root_fileops -> metadata Lwt.t
 
-  val create_folder : t -> ?locale: string -> string -> string ->
+  val create_folder : t -> ?locale: string -> string -> root_fileops ->
                       metadata Lwt.t
 
-  val delete : t -> ?locale: string -> string -> string ->
+  val delete : t -> ?locale: string -> string -> root_fileops ->
                metadata Lwt.t
 
-  val move : t -> ?locale: string -> string -> string -> string ->
+  val move : t -> ?locale: string -> string -> string -> root_fileops ->
              metadata Lwt.t
 
 end
@@ -338,22 +343,21 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let copy t ?locale ?from_copy_ref ?from_path to_path root =
     let u = Uri.of_string("https://api.dropbox.com/1/fileops/copy") in
-    let param = ("to_path",[to_path]) :: [] in
+    let param = [("to_path",[to_path])] in
     let param = match from_copy_ref, from_path with
       | Some copy_ref, Some from_path -> invalid_arg "only one of the two \
                                          argument should be specified"
       | None, Some from_path -> ("from_path",[from_path]) :: param
       | Some copy_ref, None -> ("from_copy_ref",[copy_ref]) :: param
-      | None, None -> invalid_arg "one of the two argument should \
+      | None, None -> invalid_arg "from_copy_ref or from_path should \
                       be specified" in
     let param = match locale with
       | Some l -> ("locale",[l]) :: param
       | None -> param in
-    let param =
-      if (root = "auto" || root = "sandbox" || root = "dropbox") then
-        ("root",[root]) :: param 
-      else 
-        invalid_arg "invalid root parameter" in
+    let param = match root with
+      | `Auto -> ("root",["auto"]) :: param
+      | `Dropbox -> ("root",["dropbox"]) :: param
+      | `Sandbox -> ("root",["sandbox"]) :: param in
     let u = Uri.with_query u param in
     Client.post ~headers:(headers t) u >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
@@ -361,15 +365,14 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let create_folder t ?locale path root =
     let u = Uri.of_string("https://api.dropbox.com/1/fileops/create_folder") in
-    let param = ("path",[path]) :: [] in
+    let param = [("path",[path])] in
     let param = match locale with
       | Some l -> ("locale",[l]) :: param
       | None -> param in
-    let param =
-      if (root = "auto" || root = "sandbox" || root = "dropbox") then
-        ("root",[root]) :: param 
-      else 
-        invalid_arg "invalid root parameter" in
+    let param = match root with
+      | `Auto -> ("root",["auto"]) :: param
+      | `Dropbox -> ("root",["dropbox"]) :: param
+      | `Sandbox -> ("root",["sandbox"]) :: param in
     let u = Uri.with_query u param in
     Client.post ~headers:(headers t) u >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
@@ -377,15 +380,14 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let delete t ?locale path root =
     let u = Uri.of_string("https://api.dropbox.com/1/fileops/delete") in
-    let param = ("path",[path]) :: [] in
+    let param = [("path",[path])] in
     let param = match locale with
       | Some l -> ("locale",[l]) :: param
       | None -> param in
-    let param =
-      if (root = "auto" || root = "sandbox" || root = "dropbox") then
-        ("root",[root]) :: param 
-      else 
-        invalid_arg "invalid root parameter" in
+    let param = match root with
+      | `Auto -> ("root",["auto"]) :: param
+      | `Dropbox -> ("root",["dropbox"]) :: param
+      | `Sandbox -> ("root",["sandbox"]) :: param in
     let u = Uri.with_query u param in
     Client.post ~headers:(headers t) u >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
@@ -397,11 +399,10 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let param = match locale with
       | Some l -> ("locale",[l]) :: param
       | None -> param in
-    let param =
-      if (root = "auto" || root = "sandbox" || root = "dropbox") then
-        ("root",[root]) :: param 
-      else 
-        invalid_arg "invalid root parameter" in
+    let param = match root with
+      | `Auto -> ("root",["auto"]) :: param
+      | `Dropbox -> ("root",["dropbox"]) :: param
+      | `Sandbox -> ("root",["sandbox"]) :: param in
     let u = Uri.with_query u param in
     Client.post ~headers:(headers t) u >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body

@@ -28,6 +28,8 @@ type error =
   (** User is over Dropbox storage quota. *)
   | Server_error of int * error_description
   (** Server error 5xx *)
+  | Not_found404 of error_description
+  (** The source file wasn't found at the specified path. *)
   | Not_acceptable of error_description
   (** Too many files would be involved in the operation for it to complete
       successfully. The limit is currently 10,000 files and folders. *)
@@ -270,6 +272,7 @@ module type S = sig
           level. All paths returned are relative to this root level. *)
       contents: metadata list }
 
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
   (** [get_file t name] return the metadata for the file and a stream of
@@ -284,8 +287,11 @@ module type S = sig
       including [start]).  If [start <= 0], the metadata will be present
       but the stream will be empty. *)
 
+
+  type root_fileops = [ `Auto | `Dropbox | `Sandbox ]  
+
   val copy : t -> ?locale: string -> ?from_copy_ref: string ->
-             ?from_path: string -> string -> string -> metadata Lwt.t
+             ?from_path: string -> string -> root_fileops -> metadata Lwt.t
   (** [copy t from_path to_path root] return the metadata for the copy of
       the file or folder
 
@@ -307,14 +313,19 @@ module type S = sig
       /copy_ref call. Must be used instead of the from_path parameter.
 
       Possible errors:
-      403 An invalid copy operation was attempted (e.g. there is already a
-      file at the given destination, or trying to copy a shared folder).
-      404 The source file wasn't found at the specified path.
-      406 Too many files would be involved in the operation for it to complete
-      successfully. The limit is currently 10,000 files and folders. *)
+      Invalid_oauth An invalid copy operation was attempted (e.g. there is
+      already a file at the given destination, or trying to copy a shared
+      folder).
 
-  val create_folder : t -> ?locale: string -> string -> string ->
-                      metadata Lwt.t
+      Not_found404 The source file wasn't found at the specified path.
+
+      Not_acceptable Too many files would be involved in the operation for
+      it to complete successfully. The limit is currently 10,000 files and
+      folders. *)
+
+
+  val create_folder : t -> ?locale: string -> string -> root_fileops
+                      -> metadata Lwt.t
   (** [create_folder path root] return the metadata for the new folder.
 
       @param root The root relative to which path is specified. Valid values
@@ -328,10 +339,10 @@ module type S = sig
       documentation} for more information about supported locales. 
 
       Possible error:
-      403 There is already a folder at the given destination. *)
+      Invalid_oauth There is already a folder at the given destination. *)
 
-  val delete : t -> ?locale: string -> string -> string ->
-               metadata Lwt.t
+
+  val delete : t -> ?locale: string -> string -> root_fileops -> metadata Lwt.t
   (** [delete path root] return the metadata for the deleted file or folder.
 
       @param root The root relative to which path is specified. Valid values
@@ -345,12 +356,15 @@ module type S = sig
       documentation} for more information about supported locales.
 
       Possible errors:
-      404 No file was found at the specified path.
-      406 Too many files would be involved in the operation for it to complete
-      successfully. The limit is currently 10,000 files and folders. *)
+      Not_found404 No file was found at the specified path.
 
-  val move : t -> ?locale: string -> string -> string -> string ->
-             metadata Lwt.t
+      Not_acceptable Too many files would be involved in the operation for
+      it to complete successfully. The limit is currently 10,000 files and
+      folders. *)
+
+
+  val move : t -> ?locale: string -> string -> string -> root_fileops
+             -> metadata Lwt.t
   (** [move from_path to_path root] return the metadata for the moved file or
       folder.
 
@@ -369,12 +383,15 @@ module type S = sig
       documentation} for more information about supported locales.
 
       Possible errors:
-      403 An invalid move operation was attempted (e.g. there is already a
-      file at the given destination, or moving a shared folder into a
-      shared folder).
-      404 The source file wasn't found at the specified path.
-      406 Too many files would be involved in the operation for it to
-      complete successfully. The limit is currently 10,000 files and folders.*)
+      Invalid_oauth An invalid move operation was attempted (e.g. there
+      is already a file at the given destination, or moving a shared folder
+      into a shared folder).
+
+      Not_found404 The source file wasn't found at the specified path.
+
+      Not_acceptable Too many files would be involved in the operation for
+      it to complete successfully. The limit is currently 10,000 files and
+      folders.*)
   ;;
 end
 
