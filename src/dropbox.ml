@@ -332,7 +332,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let revisions t ?(rev_limit=10) ?locale fn =
     let u = Uri.of_string("https://api.dropbox.com/1/revisions/auto/" ^ fn) in
-    let param = ("rev_limit",[string_of_int rev_limit]) :: [] in
+    let param = [("rev_limit",[string_of_int rev_limit])] in
     let param = match locale with
       | Some l -> ("locale",[l]) :: param
       | None -> param in
@@ -343,7 +343,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let restore t ?locale rev fn =
     let u = Uri.of_string("https://api.dropbox.com/1/restore/auto/" ^ fn) in
-    let param = ("rev",[rev]) :: [] in
+    let param = [("rev",[rev])] in
     let param = match locale with
       | Some l -> ("locale",[l]) :: param
       | None -> param in

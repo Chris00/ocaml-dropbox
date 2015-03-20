@@ -308,7 +308,7 @@ module type S = sig
       documentation} for more information about supported locales.
 
       Possible errors:
-      404 Unable to find the revision at that path. *)
+      Not_found404 Unable to find the revision at that path. *)
   ;;
 end
 
