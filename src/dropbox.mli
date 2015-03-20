@@ -27,6 +27,12 @@ type error =
   | Quota_exceeded of error_description
   (** User is over Dropbox storage quota. *)
   | Server_error of int * error_description
+  (** Server error 5xx *)
+  | Not_found404 of error_description
+  (** The source file wasn't found at the specified path. *)
+  | Not_acceptable of error_description
+  (** Too many files would be involved in the operation for it to complete
+      successfully. The limit is currently 10,000 files and folders. *)
 
 val string_of_error : error -> string
 
@@ -205,6 +211,17 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.  *)
 
+  type photo_info
+    = Dropbox_t.photo_info
+    = { time_taken: Date.t option;
+        lat_long: float list}
+
+  type video_info
+    = Dropbox_t.video_info
+    = { time_taken: Date.t option;
+        duration: float;
+        lat_long: float list }
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       (** A human-readable description of the file size (translated by
@@ -227,6 +244,15 @@ module type S = sig
       thumb_exists: bool;
       (** True if the file is an image that can be converted to a
           thumbnail via the {!thumbnails} call. *)
+      photo_info: photo_info option;
+      (** Only returned when the include_media_info parameter is true and the
+          file is an image. A dictionary that includes the creation time
+          (time_taken) and the GPS coordinates (lat_long). *)
+      video_info: video_info option;
+      (** Only returned when the include_media_info parameter is true and the
+          file is a video. A dictionary that includes the creation time
+          (time_taken), the GPS coordinates (lat_long), and the length of the
+          video in milliseconds (duration). *)
       icon: string;
       (** The name of the icon used to illustrate the file type in Dropbox's
           {{:https://www.dropbox.com/static/images/dropbox-api-icons.zip}icon
@@ -234,7 +260,7 @@ module type S = sig
       modified: Date.t;
       (** The last time the file was modified on Dropbox (not included
           for the root folder).  *)
-      client_mtime: Date.t;
+      client_mtime: Date.t option;
       (** For files, this is the modification time set by the desktop
           client when the file was added to Dropbox.  Since this time
           is not verified (the Dropbox server stores whatever the
@@ -244,7 +270,8 @@ module type S = sig
       root: [ `Dropbox | `App_folder ];
       (** The root or top-level folder depending on your access
           level. All paths returned are relative to this root level. *)
-    }
+      contents: metadata list }
+
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -252,13 +279,119 @@ module type S = sig
       its content.  [None] indicates that the file does not exists.
 
       @param start The first byte of the file to download.  A negative
-        number is interpreted as [0].  Default: [0].
-      @param len The number of bytes to download.  If [start] is not set,
-        the last [len] bytes of the file are downloaded.  Default: download
-        the entire file (or everything after the position [start],
-        including [start]).  If [start <= 0], the metadata will be present
-        but the stream will be empty. *)
+      number is interpreted as [0].  Default: [0].
 
+      @param len The number of bytes to download.  If [start] is not set,
+      the last [len] bytes of the file are downloaded.  Default: download
+      the entire file (or everything after the position [start],
+      including [start]).  If [start <= 0], the metadata will be present
+      but the stream will be empty. *)
+
+
+  type root_fileops = [ `Auto | `Dropbox | `Sandbox ]  
+
+  val copy : t -> ?locale: string -> ?from_copy_ref: string ->
+             ?from_path: string -> string -> root_fileops -> metadata Lwt.t
+  (** [copy t from_path to_path root] return the metadata for the copy of
+      the file or folder
+
+      @param root The root relative to which from_path and to_path are
+      specified. Valid values are auto (recommended), sandbox, and dropbox.
+
+      @param from_path Specifies the file or folder to be copied from
+      relative to root.
+
+      @param to_path Specifies the destination path, including the new name
+      for the file or folder, relative to root.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      @param from_copy_ref Specifies a copy_ref generated from a previous
+      /copy_ref call. Must be used instead of the from_path parameter.
+
+      Possible errors:
+      Invalid_oauth An invalid copy operation was attempted (e.g. there is
+      already a file at the given destination, or trying to copy a shared
+      folder).
+
+      Not_found404 The source file wasn't found at the specified path.
+
+      Not_acceptable Too many files would be involved in the operation for
+      it to complete successfully. The limit is currently 10,000 files and
+      folders. *)
+
+
+  val create_folder : t -> ?locale: string -> string -> root_fileops
+                      -> metadata Lwt.t
+  (** [create_folder path root] return the metadata for the new folder.
+
+      @param root The root relative to which path is specified. Valid values
+      are auto (recommended), sandbox, and dropbox.
+
+      @param path The path to the new folder to create relative to root.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales. 
+
+      Possible error:
+      Invalid_oauth There is already a folder at the given destination. *)
+
+
+  val delete : t -> ?locale: string -> string -> root_fileops -> metadata Lwt.t
+  (** [delete path root] return the metadata for the deleted file or folder.
+
+      @param root The root relative to which path is specified. Valid values
+      are auto (recommended), sandbox, and dropbox.
+
+      @param path The path to the file or folder to be deleted.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      Possible errors:
+      Not_found404 No file was found at the specified path.
+
+      Not_acceptable Too many files would be involved in the operation for
+      it to complete successfully. The limit is currently 10,000 files and
+      folders. *)
+
+
+  val move : t -> ?locale: string -> string -> string -> root_fileops
+             -> metadata Lwt.t
+  (** [move from_path to_path root] return the metadata for the moved file or
+      folder.
+
+      @param root The root relative to which from_path and to_path are
+      specified. Valid values are auto (recommended), sandbox, and dropbox.
+
+      @param from_path Specifies the file or folder to be moved from relative
+      to root.
+
+      @param to_path Specifies the destination path, including the new name
+      for the file or folder, relative to root.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      Possible errors:
+      Invalid_oauth An invalid move operation was attempted (e.g. there
+      is already a file at the given destination, or moving a shared folder
+      into a shared folder).
+
+      Not_found404 The source file wasn't found at the specified path.
+
+      Not_acceptable Too many files would be involved in the operation for
+      it to complete successfully. The limit is currently 10,000 files and
+      folders.*)
   ;;
 end
 
