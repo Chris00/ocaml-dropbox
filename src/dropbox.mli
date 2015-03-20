@@ -389,7 +389,7 @@ module type S = sig
       include a list of members and a list of groups. *)
 
 
-  val shared_folder : ?shared_folder_id: string -> ?include_membership: bool ->
+  val shared_folders : ?shared_folder_id: string -> ?include_membership: bool ->
                       t -> [ `Singleton of shared_folder
                            | `List of shared_folders ] Lwt.t
   (** [shared_folder t] return the metadata about a specific shared_folder

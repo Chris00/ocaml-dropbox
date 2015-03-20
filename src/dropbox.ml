@@ -222,7 +222,7 @@ module type S = sig
                  ?include_media_info: bool -> ?include_membership: bool ->
                  string -> metadata Lwt.t
 
-  val shared_folder : ?shared_folder_id: string -> ?include_membership: bool
+  val shared_folders : ?shared_folder_id: string -> ?include_membership: bool
                       -> t -> [ `Singleton of shared_folder
                               | `List of shared_folders ]  Lwt.t
 end
@@ -386,7 +386,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
 
-  let shared_folder ?shared_folder_id ?(include_membership=true) t =
+  let shared_folders ?shared_folder_id ?(include_membership=true) t =
     let u = match shared_folder_id with
     | Some id -> Uri.of_string("https://api.dropbox.com/1/shared_folders/"
                  ^ id ^ "?include_membership=" ^ 

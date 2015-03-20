@@ -6,8 +6,8 @@ module D = Dropbox_lwt_unix
     shared folder. *)
 
 let shared t shared_folder_id =
-  let get = if shared_folder_id = "" then D.shared_folder t
-            else D.shared_folder ~shared_folder_id t in
+  let get = if shared_folder_id = "" then D.shared_folders t
+            else D.shared_folders ~shared_folder_id t in
   get >>= fun shared_folder -> match shared_folder with
     | `Singleton shared_folder -> Lwt_io.printlf "%s"
       (Dropbox_j.string_of_shared_folder shared_folder)
