@@ -20,6 +20,8 @@ type error =
   | Try_later of int option * error_description
   | Quota_exceeded of error_description
   | Server_error of int * error_description
+  | Not_found404 of error_description
+  | Unsupported_media_type of error_description
 
 (* FIXME: Do we want to render the values as strings closer to OCaml? *)
 let string_of_error = function
@@ -40,6 +42,10 @@ let string_of_error = function
      "Quota_exceeded " ^ Json.string_of_error_description e
   | Server_error (st, e) ->
      sprintf "Server_error(%i, %s)" st (Json.string_of_error_description e)
+  | Not_found404 e ->
+     "Not_found404 " ^ Json.string_of_error_description e
+  | Unsupported_media_type e ->
+     "Unsupported_media_type " ^ Json.string_of_error_description e
 
 exception Error of error
 
@@ -70,6 +76,9 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Not_found -> fail_error body (fun e -> Not_found404 e)
+  | `Unsupported_media_type -> fail_error body 
+                               (fun e -> Unsupported_media_type e)
   | _ -> k r
 
 let check_errors =
@@ -149,6 +158,15 @@ module type S = sig
 
   val info : ?locale: string -> t -> info Lwt.t
 
+  type photo_info = Dropbox_t.photo_info
+                  = { time_taken: Date.t option;
+                      lat_long: float list }
+
+  type video_info = Dropbox_t.video_info
+                  = { time_taken: Date.t option;
+                      duration: float;
+                      lat_long: float list }
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       bytes: int;
@@ -159,14 +177,26 @@ module type S = sig
       rev: string;
       hash: string;
       thumb_exists: bool;
+      photo_info: photo_info option;
+      video_info: video_info option;
       icon: string;
       modified: Date.t;
-      client_mtime: Date.t;
-      root: [ `Dropbox | `App_folder ]
+      client_mtime: Date.t option;
+      root: [ `Dropbox | `App_folder ];
+      contents: metadata list
     }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
+
+
+  type size =  [ `Xs | `S | `M | `L | `Xl ]
+
+  type format = [ `Jpeg | `Png ]
+
+  val thumbnails : t -> ?format: format -> ?size: size ->
+                   ?start: int -> ?len: int ->string ->
+                   (metadata * string Lwt_stream.t) option Lwt.t
 
 end
 
@@ -304,6 +334,43 @@ module Make(Client: Cohttp_lwt.Client) = struct
       Uri.of_string("https://api-content.dropbox.com/1/files/auto/" ^ fn) in
     let u = match rev with None -> u
                          | Some r -> Uri.with_query u ["rev", [r]] in
+    Client.get ~headers u
+    >>= check_errors_404 (if must_download then stream_of_file
+                          else empty_stream)
+
+
+  let thumbnails t ?(format=`Jpeg) ?(size=`S) ?start ?len fn =
+    let headers = headers t in
+    let headers, must_download = match start, len with
+      | Some s, Some l ->
+         let s = if s < 0 then 0 else s in
+         if l <= 0 then (Cohttp.Header.add headers "Range" ("bytes=0-0"), false)
+         else
+           let range = string_of_int s ^ "-" ^ string_of_int(s + l - 1) in
+           (Cohttp.Header.add headers "Range" ("bytes=" ^ range),
+            true)
+      | Some s, None ->
+         let range = string_of_int s ^ "-" in
+         (Cohttp.Header.add headers "Range" ("bytes=" ^ range),
+          true)
+      | None, Some l ->
+         if l <= 0 then (Cohttp.Header.add headers "Range" ("bytes=0-0"), false)
+         else
+           (Cohttp.Header.add headers "Range" ("bytes=-" ^ string_of_int l),
+            true)
+      | None, None -> headers, true in
+    let u = Uri.of_string
+      ("https://api-content.dropbox.com/1/thumbnails/auto/" ^ fn) in
+    let param = match size with
+      | `Xs -> [("size",["xs"])]
+      | `S -> [("size",["s"])]
+      | `M -> [("size",["m"])]
+      | `L -> [("size",["l"])]
+      | `Xl -> [("size",["xl"])] in
+    let param = match format with
+      | `Jpeg -> ("format",["jpeg"]) :: param
+      | `Png -> ("format",["png"]) :: param in
+    let u = Uri.with_query u param in
     Client.get ~headers u
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
