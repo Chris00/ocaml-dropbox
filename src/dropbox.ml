@@ -149,16 +149,14 @@ module type S = sig
 
   val info : ?locale: string -> t -> info Lwt.t
 
-  type photo_info
-    = Dropbox_t.photo_info
-    = { time_taken: Date.t option;
-        lat_long: float list }
+  type photo_info = Dropbox_t.photo_info
+                  = { time_taken: Date.t option;
+                      lat_long: float list }
 
-  type video_info
-    = Dropbox_t.video_info
-    = { time_taken: Date.t option;
-        duration: float;
-        lat_long: float list }
+  type video_info = Dropbox_t.video_info
+                  = { time_taken: Date.t option;
+                      duration: float;
+                      lat_long: float list }
 
   type metadata = Dropbox_t.metadata = {
       size: string;
@@ -176,7 +174,8 @@ module type S = sig
       modified: Date.t;
       client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
-      contents: metadata list }
+      contents: metadata list;
+    }
 
   type delta
     = Dropbox_t.delta
