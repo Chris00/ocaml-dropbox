@@ -178,7 +178,7 @@ module type S = sig
       video_info: video_info option;
       icon: string;
       modified: Date.t;
-      client_mtime: Date.t;
+      client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
       contents: metadata list;
     }
