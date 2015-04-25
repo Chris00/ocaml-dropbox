@@ -278,6 +278,61 @@ module type S = sig
           contained in this folder. Return nothing if the folder is empty. *)
     }
 
+  type delta = Dropbox_t.delta = {
+      entries: (string * metadata) list;
+      (** A list of "delta entries". Each delta entry is a 2-item list of one
+          of the following forms:
+
+          [<path>, <metadata>] - Indicates that there is a file/folder at the
+          given path. You should add the entry to your local state. The
+          metadata value is the same as what would be returned by the
+          /metadata call, except folder metadata doesn't have hash or contents
+          fields. To correctly process delta entries:
+
+          - If the new entry includes parent folders that don't yet exist in
+            your local state, create those parent folders in your local state.
+
+          - If the new entry is a file, replace whatever your local state has
+            at path with the new entry.
+
+          - If the new entry is a folder, check what your local state has at
+            <path>. If it's a file, replace it with the new entry. If it's a
+            folder, apply the new <metadata> to the folder, but don't modify
+            the folder's children. If your local state doesn't yet include
+            this path, create it as a folder.
+
+          - If the new entry is a folder with the read-only field set to true,
+            apply the read-only permission recursively to all files within the
+            shared folder.
+
+          [<path>, null] - Indicates that there is no file/folder at the given
+          path. To update your local state to match, anything at path and all
+          its children should be deleted. Deleting a folder in your Dropbox
+          will sometimes send down a single deleted entry for that folder, and
+          sometimes separate entries for the folder and all child paths. If
+          your local state doesn't have anything at path, ignore this entry. *)
+      reset: bool;
+      (** If true, clear your local state before processing the delta entries.
+          reset is always true on the initial call to /delta  (i.e. when no
+          cursor is passed in). Otherwise, it is true in rare situations,
+          such as after server or account maintenance, or if a user deletes
+          their app folder. *)
+      cursor: string;
+      (** A string that encodes the latest information that has been returned.
+          On the next call to /delta, pass in this value. *)
+      has_more: bool
+      (** If true, then there are more entries available; you can call /delta
+          again immediately to retrieve those entries. If 'false', then wait for
+          at least five minutes (preferably longer) before checking again. *)
+      }
+
+  type longpoll_delta
+    = Dropbox_t.longpoll_delta
+    = { changes: bool; (** Incidate whether new changes are available *)
+        backoff: int   (** If present, it indicates how many seconds you code
+                           should wait before calling /longpoll_delta again *)
+      }
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
   (** [get_file t name] return the metadata for the file and a stream of
@@ -346,6 +401,67 @@ module type S = sig
       Not_modified The folder contents have not changed (relies on hash
       parameter).
       Not_acceptable There are too many file entries to return. *)
+
+  val delta : ?cursor: string -> ?locale: string -> ?path_prefix: string
+              -> ?include_media_info: bool -> t -> delta Lwt.t
+  (** [delta t] return the JSON object delta.
+
+      @param cursor A string that is used to keep track of your current state.
+      On the next call pass in this value to return delta entries that have
+      been recorded since the cursor was returned.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      @param path_prefix If present, this parameter filters the response
+      to only include entries at or under the specified path. For example,
+      a path_prefix of "/Photos/Vacation" will return entries for the path
+      "/Photos/Vacation" and any files and folders under that path. If you
+      use the path_prefix parameter, you must continue to pass the correct
+      prefix on subsequent calls using the returned cursor. You can switch
+      the path_prefix on any existing cursor to a descendant of the existing
+      path_prefix on subsequent calls to /delta. For example if your cursor
+      has no path_prefix, you can switch to any path_prefix. If your cursor
+      has a path_prefix of "/Photos", you can switch it to "/Photos/Vacaction".
+
+      @param include_media_info If true, each file will include a photo_info
+      dictionary for photos and a video_info dictionary for videos with
+      additional media info. When include_media_info is specified, files will
+      only appear in delta responses when the media info is ready. If you use
+      the include_media_info parameter, you must continue to pass the same
+      value on subsequent calls using the returned cursor. *)
+
+  val latest_cursor : ?path_prefix: string -> ?include_media_info: bool
+                      -> t -> delta Lwt.t
+  (** [latest_cursor t] return the JSON object delta with only the
+      field cursor as would be returned by /delta when has_more is false.
+
+      @param path_prefix If present, the returned cursor will be encoded with
+      a path_prefix for the specified path for use with /delta.
+
+      @param include_media_info If true, the returned cursor will be encoded
+      with include_media_info set to true for use with /delta. *)
+
+  val longpoll_delta : t -> ?timeout: int -> string -> longpoll_delta Lwt.t
+  (** [longpoll_delta t] return the JSON object longpoll_delta. The connection
+      will block until there are changes available or a timeout occurs.
+
+      @param cursor A delta cursor as returned from a call to /delta. Note
+      that a cursor returned from a call to /delta with include_media_info=true
+      is incompatible with /longpoll_delta and an error will be returned.
+
+      @param timeout An optional integer indicating a timeout, in seconds. The
+      default value is 30 seconds, which is also the minimum allowed value.
+      The maximum is 480 seconds. The request will block for at most this
+      length of time, plus up to 90 seconds of random jitter added to avoid
+      the thundering herd problem. Care should be taken when using this
+      parameter, as some network infrastructure does not support long timeouts.
+
+      Possible errors:
+      Invalid_arg One or more parameters were invalid. The response will be
+      of the form {"error": "<reason>"}. *)
   ;;
 end
 
