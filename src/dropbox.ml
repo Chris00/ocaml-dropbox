@@ -176,6 +176,7 @@ module type S = sig
       root: [ `Dropbox | `App_folder ];
       contents: metadata list
     }
+
   type copy_ref = Dropbox_t.copy_ref
                 = { copy_ref: string;
                     expires: Date.t }

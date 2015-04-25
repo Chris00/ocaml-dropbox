@@ -207,14 +207,16 @@ module type S = sig
 
   type photo_info
     = Dropbox_t.photo_info
-    = { time_taken: Date.t option;
-        lat_long: float list }
+    = { time_taken: Date.t option; (** The creation time of the photo *)
+        lat_long: float list       (** The GPS coordinates of the photo *)
+      }
 
   type video_info
     = Dropbox_t.video_info
-    = { time_taken: Date.t option;
-        duration: float;
-        lat_long: float list }
+    = { time_taken: Date.t option; (** The creation time of the video *)
+        duration: float;           (** The video length in ms *)
+        lat_long: float list       (** The GPS coordinates of the video *)
+      }
 
   type metadata = Dropbox_t.metadata = {
       size: string;
@@ -265,6 +267,8 @@ module type S = sig
       (** The root or top-level folder depending on your access
           level. All paths returned are relative to this root level. *)
       contents: metadata list;
+      (** For folders, contents is the list of the metadata of the files
+          contained in this folder. Return nothing if the folder is empty. *)
     }
   type copy_ref
     = Dropbox_t.copy_ref
