@@ -65,4 +65,12 @@ type metadata = { size: string;
                   root: root;
                   ~contents: metadata list }
 
+type delta = { ~entries: (string * metadata) list;
+               ~reset: bool;
+               cursor: string;
+               ~has_more: bool }
+
+type longpoll_delta = { changes: bool;
+                        ~backoff: int }
+
 type search = metadata list
