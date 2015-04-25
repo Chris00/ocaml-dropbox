@@ -32,6 +32,14 @@ type error =
   (** The folder contents have not changed (relies on hash parameter). *)
   | Not_acceptable of error_description
   (** There are too many file entries to return. *)
+  | Conflict of error_description
+  (** The call failed because a conflict occurred. *)
+  | Length_required of error_description
+  (** Missing Content-Length header (this endpoint doesn't support HTTP
+      chunked transfer encoding).*)
+  | Not_found404 of error_description
+  (** File or folder not found at the specified path. The upload_id
+      does not exist or has expired *)
 
 val string_of_error : error -> string
 
@@ -276,6 +284,13 @@ module type S = sig
           contained in this folder. Return nothing if the folder is empty. *)
     }
 
+  type chunked_upload
+    = Dropbox_t.chunked_upload
+    = { upload_id: string; (** The ID of the in-progress upload. *)
+        offset: int;       (** The byte offset of this chunk. *)
+        expires: Date.t    (** The time limit to finish the upload.*)
+      }
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
   (** [get_file t name] return the metadata for the file and a stream of
@@ -341,6 +356,104 @@ module type S = sig
       Not_modified The folder contents have not changed (relies on hash
       parameter).
       Not_acceptable There are too many file entries to return. *)
+
+  val stream_files_put : t -> ?locale: string -> ?overwrite: bool ->
+                         ?parent_rev: string -> ?autorename: bool -> string ->
+                         int -> string Lwt_stream.t -> metadata Lwt.t
+  (** [stream_files_put t name size stream] return the metadata for the
+      uploaded file.
+
+      @param locale The metadata returned on successful upload will have
+      its size field translated based on the given locale.
+
+      @param overwrite This value, either true (default) or false, determines
+      whether an existing file will be overwritten by this upload. If true,
+      any existing file will be overwritten. If false, the other parameters
+      determine whether a conflict occurs and how that conflict is resolved.
+
+      @param parent_rev If present, this parameter specifies the revision of
+      the file you're editing. If parent_rev matches the latest version of the
+      file on the user's Dropbox, that file will be replaced. Otherwise, a
+      conflict will occur. (See below.) If you specify a parent_rev and that
+      revision doesn't exist, the file won't save (error 400). You can get the
+      most recent rev by performing a call to /metadata.
+
+      @param autorename This value, either true (default) or false, determines
+      what happens when there is a conflict. If true, the file being uploaded
+      will be automatically renamed to avoid the conflict. (For example,
+      test.txt might be automatically renamed to test (1).txt.) The new name
+      can be obtained from the returned metadata. If false, the call will fail
+      with a 409 (Conflict) response code.
+
+      Possible errors:
+      409 The call failed because a conflict occurred. This means a file
+      already existed at the specified path, overwrite was false, and the
+      parent_rev (if specified) didn't match the current rev.
+      411 Missing Content-Length header (this endpoint doesn't support HTTP
+      chunked transfer encoding). *)
+
+  val cohttp_body_files_put : t -> ?locale: string -> ?overwrite: bool ->
+                              ?parent_rev: string -> ?autorename: bool ->
+                              string -> int -> Cohttp_lwt_body.t ->
+                              metadata Lwt.t
+  (** Idem stream_files_put *)
+
+  val chunked_upload : t -> ?upload_id: string -> ?offset: int ->
+                       Cohttp_lwt_body.t -> chunked_upload Lwt.t
+  (** [chunked_upload stream] return the JSON chunked_upload for the
+      uploaded chunk.
+
+      @param upload_id The unique ID of the in-progress upload on the server.
+      If left blank, the server will create a new upload session.
+
+      @param offset The byte offset of this chunk, relative to the beginning
+      of the full file. The server will verify that this matches the offset it
+      expects. If it does not, the server will return an error with the
+      expected offset.
+
+      Possible errors:
+      404 The upload_id does not exist or has expired.
+      400 The offset parameter does not match up with what the server expects.
+      The body of the error response will be JSON similar to the above,
+      indicating the correct offset to upload.
+   *)
+  val commit_chunked_upload : t -> ?locale: string -> ?overwrite: bool ->
+                              ?parent_rev: string -> ?autorename: bool ->
+                              string -> string -> metadata Lwt.t
+  (** [commit_chunked_upload upload_id name] return the metadata for the
+      uploaded file using chunked_upload.
+
+      @param locale The metadata returned on successful upload will have its
+      size field translated based on the given locale.
+
+      @param overwrite This value, either true (default) or false, determines
+      whether an existing file will be overwritten by this upload. If true, any
+      existing file will be overwritten. If false, the other parameters
+      determine whether a conflict occurs and how that conflict is resolved.
+
+      @param parent_rev If present, this parameter specifies the revision of
+      the file you're editing. If parent_rev matches the latest version of the
+      file on the user's Dropbox, that file will be replaced. Otherwise, a
+      conflict will occur. (See below.) If you specify a parent_rev and that
+      revision doesn't exist, the file won't save (error 400). You can get the
+      most recent rev by performing a call to /metadata.
+
+      @param autorename This value, either true (default) or false, determines
+      what happens when there is a conflict. If true, the file being uploaded
+      will be automatically renamed to avoid the conflict. (For example,
+      test.txt might be automatically renamed to test (1).txt.) The new name
+      can be obtained from the returned metadata. If false, the call will fail
+      with a 409 (Conflict) response code.
+
+      @param upload_id Used to identify the chunked upload session you'd like
+      to commit.
+
+      Possible errors:
+      409 The call failed because a conflict occurred. This means a file
+      already existed at the specified path, overwrite was false, and the
+      parent_rev (if specified) didn't match the current rev.
+      400 Returned if the request does not contain an upload_id or if there is
+      no chunked upload matching the given upload_id. *)
   ;;
 end
 
