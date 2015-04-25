@@ -32,6 +32,7 @@ type error =
   (** The folder contents have not changed (relies on hash parameter). *)
   | Not_acceptable of error_description
   (** There are too many file entries to return. *)
+  | Not_found404 of error_description
 
 val string_of_error : error -> string
 
@@ -276,6 +277,9 @@ module type S = sig
           contained in this folder. Return nothing if the folder is empty. *)
     }
 
+  type revisions = metadata list (** The list of the metadata for the
+                                     previous revisions of a file *)
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
   (** [get_file t name] return the metadata for the file and a stream of
@@ -341,6 +345,32 @@ module type S = sig
       Not_modified The folder contents have not changed (relies on hash
       parameter).
       Not_acceptable There are too many file entries to return. *)
+
+  val revisions : t -> ?rev_limit: int -> ?locale: string -> string ->
+                  revisions Lwt.t
+  (** [revisions t name] return the metadata for the previous revisions of
+      a file (in a list of metadata). Only revisions up to thirty days old
+      are available.
+
+      @param rev_limit Default is 10. Max is 1,000. Up to this number of
+      recent revisions will be returned.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales. *)
+
+  val restore : t -> ?locale: string -> string -> string -> metadata Lwt.t
+  (** [restore t revision name] return the metadata of the restored file.
+
+      @param rev The revision of the file to restore.
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      Possible errors:
+      Not_found404 Unable to find the revision at that path. *)
   ;;
 end
 
