@@ -20,6 +20,9 @@ type error =
   | Try_later of int option * error_description
   | Quota_exceeded of error_description
   | Server_error of int * error_description
+  | Conflict of error_description
+  | Length_required of error_description
+  | Not_found404 of error_description
 
 (* FIXME: Do we want to render the values as strings closer to OCaml? *)
 let string_of_error = function
@@ -40,6 +43,12 @@ let string_of_error = function
      "Quota_exceeded " ^ Json.string_of_error_description e
   | Server_error (st, e) ->
      sprintf "Server_error(%i, %s)" st (Json.string_of_error_description e)
+  | Conflict e -> 
+     "Conflict " ^ Json.string_of_error_description e
+  | Length_required e ->
+     "Length_required " ^ Json.string_of_error_description e
+  | Not_found404 e ->
+     "Not_found404 " ^ Json.string_of_error_description e
 
 exception Error of error
 
@@ -70,6 +79,9 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Conflict -> fail_error body (fun e -> Conflict e)
+  | `Length_required -> fail_error body (fun e -> Length_required e)
+  | `Not_found -> fail_error body (fun e -> Not_found404 e)
   | _ -> k r
 
 let check_errors =
@@ -149,6 +161,15 @@ module type S = sig
 
   val info : ?locale: string -> t -> info Lwt.t
 
+  type photo_info = Dropbox_t.photo_info
+                  = { time_taken: Date.t option;
+                      lat_long: float list }
+
+  type video_info = Dropbox_t.video_info
+                  = { time_taken: Date.t option;
+                      duration: float;
+                      lat_long: float list }
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       bytes: int;
@@ -159,15 +180,38 @@ module type S = sig
       rev: string;
       hash: string;
       thumb_exists: bool;
+      photo_info: photo_info option;
+      video_info: video_info option;
       icon: string;
       modified: Date.t;
-      client_mtime: Date.t;
-      root: [ `Dropbox | `App_folder ]
+      client_mtime: Date.t option;
+      root: [ `Dropbox | `App_folder ];
+      contents: metadata list;
     }
+
+  type chunked_upload = Dropbox_t.chunked_upload
+                      = { upload_id: string;
+                          offset: int;
+                          expires: Date.t }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
+  val stream_files_put : t -> ?locale: string -> ?overwrite: bool ->
+                         ?parent_rev: string -> ?autorename: bool -> string ->
+                         int -> string Lwt_stream.t -> metadata Lwt.t
+
+  val cohttp_body_files_put : t -> ?locale: string -> ?overwrite: bool ->
+                              ?parent_rev: string -> ?autorename: bool ->
+                              string -> int -> Cohttp_lwt_body.t ->
+                              metadata Lwt.t
+
+  val chunked_upload : t -> ?upload_id: string -> ?offset: int ->
+                       Cohttp_lwt_body.t -> chunked_upload Lwt.t
+
+  val commit_chunked_upload : t -> ?locale: string -> ?overwrite: bool ->
+                              ?parent_rev: string -> ?autorename: bool ->
+                              string -> string -> metadata Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -307,4 +351,81 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.get ~headers u
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
+
+
+  let stream_files_put t ?locale ?(overwrite=true) ?parent_rev 
+                       ?(autorename=true) fn len stream =
+    (* let headers = headers t in *)
+    let headers = Cohttp.Header.add (headers t)
+      "Content-Length" (string_of_int len) in
+    let u = Uri.of_string("https://api-content.dropbox.com\
+                           /1/files_put/auto/" ^ fn) in
+    let param = ("overwrite", [string_of_bool overwrite]) ::
+      ("autorename", [string_of_bool autorename]) :: [] in
+    let param = match locale with
+      | Some l -> ("locale", [l]) :: param
+      | None -> param in
+    let param = match parent_rev with
+      | Some p_rev -> ("parent_rev",[p_rev]) :: param
+      | None -> param in
+    let u = Uri.with_query u param in
+    Client.put ~headers ~body:(Cohttp_lwt_body.of_stream stream) u
+    >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.metadata_of_string body)
+
+
+  let cohttp_body_files_put t ?locale ?(overwrite=true) ?parent_rev 
+                            ?(autorename=true) fn len stream =
+    let headers = headers t in
+ (*   let headers = Cohttp.Header.add (headers t)
+      "Content-Length" (string_of_int len) in *)
+    let u =
+      Uri.of_string("https://api-content.dropbox.com\
+                     /1/files_put/auto/" ^ fn) in
+    let param = ("overwrite", [string_of_bool overwrite]) ::
+      ("autorename", [string_of_bool autorename]) :: [] in
+    let param = match locale with
+      | Some l -> ("locale", [l]) :: param
+      | None -> param in
+    let param = match parent_rev with
+      | Some p_rev -> ("parent_rev",[p_rev]) :: param
+      | None -> param in
+    let u = Uri.with_query u param in
+    Client.put ~headers ~body:stream u
+    >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.metadata_of_string body)
+
+
+  let chunked_upload t ?upload_id ?offset chunked_data =
+    let u =
+      Uri.of_string("https://api-content.dropbox.com/1/chunked_upload") in
+    let param = match upload_id with
+      | Some id -> ("upload_id",[id]) :: []
+      | None -> [] in
+    let param = match offset with
+      | Some offset -> ("offset",[string_of_int offset]) :: param
+      | None -> param in
+    let u = Uri.with_query u param in
+    Client.put ~body:chunked_data ~chunked:true ~headers:(headers t)  u
+    >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.chunked_upload_of_string body)
+
+
+  let commit_chunked_upload t ?locale ?(overwrite=true) ?parent_rev
+                            ?(autorename=true) upload_id fn =
+    let u = Uri.of_string("https://api-content.dropbox.com/1\
+                           /commit_chunked_upload/auto/" ^ fn) in
+    let param = ("overwrite",[string_of_bool overwrite]) ::
+      ("autorename",[string_of_bool autorename]) ::
+      ("upload_id",[upload_id]) :: [] in
+    let param = match locale with
+      | Some l -> ("locale",[l]) :: param
+      | None -> param in
+    let param = match parent_rev with
+      | Some rev -> ("parent_rev",[rev]) :: param
+      | None -> param in
+    let u = Uri.with_query u param in 
+    Client.post ~headers:(headers t) u
+    >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.metadata_of_string body)
 end
