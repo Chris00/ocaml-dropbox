@@ -52,6 +52,39 @@ Executable "metadata"
   Install:      false
   CompiledObject: best
 
+Executable "copy"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       copy.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
+Executable "delete"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       delete.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
+Executable "create_folder"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       create_folder.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
+Executable "move"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       move.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
+
 Document API
   Title:           API reference for Dropbox
   Type:            OCamlbuild (0.4)
