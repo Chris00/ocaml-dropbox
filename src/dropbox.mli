@@ -214,6 +214,19 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.  *)
 
+  type photo_info
+    = Dropbox_t.photo_info
+    = { time_taken: Date.t option; (** The creation time of the photo *)
+        lat_long: float list       (** The GPS coordinates of the photo *)
+      }
+
+  type video_info
+    = Dropbox_t.video_info
+    = { time_taken: Date.t option; (** The creation time of the video *)
+        duration: float;           (** The video length in ms *)
+        lat_long: float list       (** The GPS coordinates of the video *)
+      } 
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       (** A human-readable description of the file size (translated by
@@ -236,6 +249,15 @@ module type S = sig
       thumb_exists: bool;
       (** True if the file is an image that can be converted to a
           thumbnail via the {!thumbnails} call. *)
+      photo_info: photo_info option;
+      (** Only returned when the include_media_info parameter is true and the
+          file is an image. A dictionary that includes the creation time
+          (time_taken) and the GPS coordinates (lat_long). *)
+      video_info: video_info option;
+      (** Only returned when the include_media_info parameter is true and the
+          file is a video. A dictionary that includes the creation time
+          (time_taken), the GPS coordinates (lat_long), and the length of the
+          video in milliseconds (duration). *)
       icon: string;
       (** The name of the icon used to illustrate the file type in Dropbox's
           {{:https://www.dropbox.com/static/images/dropbox-api-icons.zip}icon
@@ -243,7 +265,7 @@ module type S = sig
       modified: Date.t;
       (** The last time the file was modified on Dropbox (not included
           for the root folder).  *)
-      client_mtime: Date.t;
+      client_mtime: Date.t option;
       (** For files, this is the modification time set by the desktop
           client when the file was added to Dropbox.  Since this time
           is not verified (the Dropbox server stores whatever the
@@ -253,6 +275,9 @@ module type S = sig
       root: [ `Dropbox | `App_folder ];
       (** The root or top-level folder depending on your access
           level. All paths returned are relative to this root level. *)
+      contents: metadata list;
+      (** For folders, contents is the list of the metadata of the files
+          contained in this folder. Return nothing if the folder is empty. *)
     }
 
   type chunked_upload
