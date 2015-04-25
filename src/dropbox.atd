@@ -64,3 +64,5 @@ type metadata = { size: string;
                   ?client_mtime: date option;
                   root: root;
                   ~contents: metadata list }
+
+type search = metadata list
