@@ -258,7 +258,7 @@ module type S = sig
       (** The name of the icon used to illustrate the file type in Dropbox's
           {{:https://www.dropbox.com/static/images/dropbox-api-icons.zip}icon
           library}. *)
-      modified: Date.t;
+      modified: Date.t option;
       (** The last time the file was modified on Dropbox (not included
           for the root folder).  *)
       client_mtime: Date.t option;
