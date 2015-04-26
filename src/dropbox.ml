@@ -199,7 +199,7 @@ module type S = sig
   type longpoll_delta
     = Dropbox_t.longpoll_delta
     = { changes: bool;
-        backoff: int }
+        backoff: int option }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -215,7 +215,7 @@ module type S = sig
   val latest_cursor : ?path_prefix: string -> ?include_media_info: bool
                       -> t -> cursor Lwt.t
 
-  val longpoll_delta : t -> ?timeout: int -> string -> longpoll_delta Lwt.t
+  val longpoll_delta : t -> ?timeout: int -> cursor -> longpoll_delta Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -451,9 +451,12 @@ module Make(Client: Cohttp_lwt.Client) = struct
   let longpoll_delta_uri =
     Uri.of_string "https://api-notify.dropbox.com/1/longpoll_delta"
 
-  let longpoll_delta t ?(timeout=30) cursor =
+  let longpoll_delta t ?(timeout=30) (c: cursor) =
+    let timeout = if timeout < 30 then 30
+                  else if timeout > 480 then 480
+                  else timeout in
     let param = [("timeout", [string_of_int timeout]);
-                 ("cursor", [cursor])] in
+                 ("cursor", [c.cursor])] in
     let u = Uri.with_query longpoll_delta_uri param in
     Client.get ~headers:(headers t) u >>= check_errors
     >>= fun(_, body) -> Cohttp_lwt_body.to_string body
