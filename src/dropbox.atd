@@ -65,10 +65,12 @@ type metadata = { size: string;
                   root: root;
                   ~contents: metadata list }
 
-type delta = { ~entries: (string * metadata nullable) list;
-               ~reset: bool;
-               cursor: string;
-               ~has_more: bool }
+type delta_json = { ~entries: (string * metadata nullable) list;
+                    reset: bool;
+                    cursor: string;
+                    has_more: bool }
+
+type latest_cursor = { cursor <ocaml name="latest_cursor">: string }
 
 type longpoll_delta = { changes: bool;
                         ~backoff: int }
