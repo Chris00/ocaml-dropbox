@@ -79,6 +79,10 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Not_modified -> fail_error body (fun e -> Not_modified e)
+  | `Not_acceptable -> fail_error body (fun e -> Not_acceptable e)
+  | `Unsupported_media_type -> fail_error body
+                                 (fun e -> Unsupported_media_type e)
   | _ -> k r
 
 let check_errors =
@@ -189,7 +193,7 @@ module type S = sig
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
-  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: string ->
+  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: bool ->
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
                  string -> metadata Lwt.t
@@ -342,20 +346,17 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
 
-  let metadata t ?(file_limit=10_000) ?hash ?(list="true")
+  let metadata t ?(file_limit=10_000) ?hash ?(list=true)
                ?(include_deleted=false) ?rev ?locale
-               ?(include_media_info=false) ?include_membership fn =
+               ?(include_media_info=false) ?(include_membership=false) fn =
     let u = Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
-    let param = ("list", [list]) :: ("file_limit",[string_of_int file_limit]) ::
-      ("include_media_info",[string_of_bool include_media_info]) :: [] in
-    (** include_deleted is only applicable when list is set and hash is
-        ignored if list=false. We assume that list is whether true of false.*)
-    let param = match list, hash with
-      | "true", Some h -> ("include_deleted",[string_of_bool include_deleted]) 
-                          :: ("hash",[h]) :: param
-      | "true", None -> ("include_deleted",[string_of_bool include_deleted])
-                        :: param
-      | _, _ -> param in
+    let param = [("include_media_info",[string_of_bool include_media_info]);
+      ("list", [string_of_bool list]);("file_limit",[string_of_int file_limit]);
+      ("include_membership",[string_of_bool include_membership]);
+      ("include_deleted",[string_of_bool include_deleted])] in
+    let param = match hash with
+      | Some h -> ("hash",[h]) :: param
+      | None -> param in
     let param = match locale with
       | Some l -> ("locale", [l]) :: param
       | None -> param in
