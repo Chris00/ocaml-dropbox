@@ -189,7 +189,7 @@ module type S = sig
   val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: bool ->
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
-                 string -> metadata Lwt.t
+                 string -> metadata option Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -330,6 +330,10 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
 
+  let metadata_of_response (_, body) =
+    Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Some(Json.metadata_of_string body))
+
   let metadata t ?(file_limit=10_000) ?(hash="") ?(list=true)
                ?(include_deleted=false) ?(rev="") ?(locale="")
                ?(include_media_info=false) ?include_membership fn =
@@ -345,7 +349,5 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let q = if rev <> "" then ("rev", [rev]) :: q else q in
     let u = Uri.with_query u q in
     Client.get ~headers:(headers t) u
-    >>= check_errors
-    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.metadata_of_string body)
+    >>= check_errors_404 metadata_of_response
 end
