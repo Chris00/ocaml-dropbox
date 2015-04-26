@@ -49,17 +49,10 @@ let download t ?format ?(size="s") fn =
 let main t args =
   match args with
   | [] -> Lwt_io.printlf "No file specified."
-  | a -> if List.length a = 1 then
-           download t (List.hd a)
-	 else if List.length a = 2 then
-           match List.nth a 1, List.nth a 0 with
-           | fn, size -> download t ~size fn
-         else if List.length a = 3 then
-           match List.nth a 2, List.nth a 1, List.nth a 0 with
-           | fn, size, format -> download t ~format
-                                 ~size fn
-	 else
-           Lwt_io.printlf "Thumbnails function take a maximum of 3 arguments."
+  | [fn] -> download t fn
+  | [size; fn] -> download t ~size fn
+  | [format; size; fn] -> download t ~format ~size fn
+  | _ -> Lwt_io.printlf "Thumbnails function take a maximum of 3 arguments."
 
 let () =
   Common.run main

@@ -184,7 +184,7 @@ module type S = sig
       photo_info: photo_info option;
       video_info: video_info option;
       icon: string;
-      modified: Date.t;
+      modified: Date.t option;
       client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
       contents: metadata list;
@@ -196,7 +196,7 @@ module type S = sig
   val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: bool ->
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
-                 string -> metadata Lwt.t
+                 string -> metadata option Lwt.t
 
   type size =  [ `Xs | `S | `M | `L | `Xl ]
 
@@ -205,7 +205,6 @@ module type S = sig
   val thumbnails : t -> ?format: format -> ?size: size ->
                    ?start: int -> ?len: int ->string ->
                    (metadata * string Lwt_stream.t) option Lwt.t
-
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -346,27 +345,26 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
 
-  let metadata t ?(file_limit=10_000) ?hash ?(list=true)
-               ?(include_deleted=false) ?rev ?locale
-               ?(include_media_info=false) ?(include_membership=false) fn =
+  let metadata_of_response (_, body) =
+    Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Some(Json.metadata_of_string body))
+
+  let metadata t ?(file_limit=10_000) ?(hash="") ?(list=true)
+               ?(include_deleted=false) ?(rev="") ?(locale="")
+               ?(include_media_info=false) ?include_membership fn =
     let u = Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
-    let param = [("include_media_info",[string_of_bool include_media_info]);
-      ("list", [string_of_bool list]);("file_limit",[string_of_int file_limit]);
-      ("include_membership",[string_of_bool include_membership]);
-      ("include_deleted",[string_of_bool include_deleted])] in
-    let param = match hash with
-      | Some h -> ("hash",[h]) :: param
-      | None -> param in
-    let param = match locale with
-      | Some l -> ("locale", [l]) :: param
-      | None -> param in
-    let param = match rev with
-      | Some rev -> ("rev",[rev]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in
-    Client.get ~headers:(headers t) u >>= check_errors
-    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.metadata_of_string body)
+    let file_limit = if file_limit < 0 then 0 else file_limit in
+    let q = [("list", [string_of_bool list]);
+             ("file_limit", [string_of_int file_limit]);
+             ("include_deleted", [string_of_bool include_deleted]);
+             ("include_media_info", [string_of_bool include_media_info]);
+            ] in
+    let q = if hash <> "" then ("hash", [hash]) :: q else q in
+    let q = if locale <> "" then ("locale", [locale]) :: q else q in
+    let q = if rev <> "" then ("rev", [rev]) :: q else q in
+    let u = Uri.with_query u q in
+    Client.get ~headers:(headers t) u
+    >>= check_errors_404 metadata_of_response
 
   let thumbnails t ?(format=`Jpeg) ?(size=`S) ?start ?len fn =
     let headers = headers t in
@@ -390,16 +388,16 @@ module Make(Client: Cohttp_lwt.Client) = struct
       | None, None -> headers, true in
     let u = Uri.of_string
       ("https://api-content.dropbox.com/1/thumbnails/auto/" ^ fn) in
-    let param = match size with
+    let q = match size with
       | `Xs -> [("size",["xs"])]
       | `S -> [("size",["s"])]
       | `M -> [("size",["m"])]
       | `L -> [("size",["l"])]
       | `Xl -> [("size",["xl"])] in
-    let param = match format with
-      | `Jpeg -> ("format",["jpeg"]) :: param
-      | `Png -> ("format",["png"]) :: param in
-    let u = Uri.with_query u param in
+    let q = match format with
+      | `Jpeg -> ("format",["jpeg"]) :: q
+      | `Png -> ("format",["png"]) :: q in
+    let u = Uri.with_query u q in
     Client.get ~headers u
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
