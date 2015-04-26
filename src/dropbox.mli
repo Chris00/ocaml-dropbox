@@ -409,7 +409,7 @@ module type S = sig
       been recorded since the cursor was returned.
 
       @param locale Specify language settings for user error messages
-      and other language specific text.  See
+      and other language specific text. See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.
 
@@ -420,11 +420,11 @@ module type S = sig
       use the path_prefix parameter, you must continue to pass the correct
       prefix on subsequent calls using the returned cursor. You can switch
       the path_prefix on any existing cursor to a descendant of the existing
-      path_prefix on subsequent calls to /delta. For example if your cursor
+      path_prefix on subsequent calls to [delta]. For example if your cursor
       has no path_prefix, you can switch to any path_prefix. If your cursor
       has a path_prefix of "/Photos", you can switch it to "/Photos/Vacaction".
 
-      @param include_media_info If true, each file will include a photo_info
+      @param include_media_info If [true], each file will include a photo_info
       dictionary for photos and a video_info dictionary for videos with
       additional media info. When include_media_info is specified, files will
       only appear in delta responses when the media info is ready. If you use
@@ -434,22 +434,23 @@ module type S = sig
   val latest_cursor : ?path_prefix: string -> ?include_media_info: bool
                       -> t -> delta Lwt.t
   (** [latest_cursor t] return the JSON object delta with only the
-      field cursor as would be returned by /delta when has_more is false.
+      field cursor as would be returned by [delta] when has_more is [false].
 
       @param path_prefix If present, the returned cursor will be encoded with
-      a path_prefix for the specified path for use with /delta.
+      a path_prefix for the specified path for use with [delta].
 
-      @param include_media_info If true, the returned cursor will be encoded
-      with include_media_info set to true for use with /delta. *)
+      @param include_media_info If [true], the returned cursor will be encoded
+      with include_media_info set to [true] for use with [delta]. *)
 
   val longpoll_delta : t -> ?timeout: int -> string ->
                        longpoll_delta Lwt.t
   (** [longpoll_delta t] return the JSON object longpoll_delta. The connection
       will block until there are changes available or a timeout occurs.
 
-      @param cursor A delta cursor as returned from a call to /delta. Note
-      that a cursor returned from a call to /delta with include_media_info=true
-      is incompatible with /longpoll_delta and an error will be returned.
+      @param cursor A delta cursor as returned from a call to [delta]. Note
+      that a cursor returned from a call to [delta] with include_media_info =
+      [true] is incompatible with [longpoll_delta] and an error will be
+      returned.
 
       @param timeout An optional integer indicating a timeout, in seconds. The
       default value is 30 seconds, which is also the minimum allowed value.
