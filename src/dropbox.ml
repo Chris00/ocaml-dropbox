@@ -344,7 +344,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
                ?(include_deleted=false) ?(rev="") ?(locale="")
                ?(include_media_info=false) ?include_membership fn =
     let u = Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
-   let file_limit = if file_limit < 0 then 0 else file_limit in
+    let file_limit = if file_limit < 0 then 0 else file_limit in
     let q = [("list", [string_of_bool list]);
              ("file_limit", [string_of_int file_limit]);
              ("include_deleted", [string_of_bool include_deleted]);
