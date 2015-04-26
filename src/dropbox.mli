@@ -284,8 +284,8 @@ module type S = sig
           [<path>, <metadata>] - Indicates that there is a file/folder at the
           given path. You should add the entry to your local state. The
           metadata value is the same as what would be returned by the
-          /metadata call, except folder metadata doesn't have hash or contents
-          fields. To correctly process delta entries:
+          [metadata] call, except folder metadata doesn't have hash or
+          contents fields. To correctly process delta entries:
 
           - If the new entry includes parent folders that don't yet exist in
             your local state, create those parent folders in your local state.
@@ -310,25 +310,32 @@ module type S = sig
           sometimes separate entries for the folder and all child paths. If
           your local state doesn't have anything at path, ignore this entry. *)
       reset: bool;
-      (** If true, clear your local state before processing the delta entries.
-          reset is always true on the initial call to /delta  (i.e. when no
-          cursor is passed in). Otherwise, it is true in rare situations,
+      (** If [true], clear your local state before processing the delta entries.
+          reset is always [true] on the initial call to [delta]  (i.e. when no
+          cursor is passed in). Otherwise, it is [true] in rare situations,
           such as after server or account maintenance, or if a user deletes
           their app folder. *)
       cursor: string;
       (** A string that encodes the latest information that has been returned.
-          On the next call to /delta, pass in this value. *)
+          On the next call to [delta], pass in this value. *)
       has_more: bool;
-      (** If true, then there are more entries available; you can call /delta
-          again immediately to retrieve those entries. If 'false', then wait for
+      (** If [true], then there are more entries available; you can call [delta]
+          again immediately to retrieve those entries. If [false], then wait for
           at least five minutes (preferably longer) before checking again. *)
+      }
+
+  type latest_cursor
+    = Dropbox_t.latest_cursor
+    = { cursor: string
+        (** A string that encodes the latest information that has been
+            returned. On the next call to [delta], pass in this value. *)
       }
 
   type longpoll_delta
     = Dropbox_t.longpoll_delta
     = { changes: bool; (** Incidate whether new changes are available *)
         backoff: int   (** If present, it indicates how many seconds you code
-                           should wait before calling /longpoll_delta again *)
+                           should wait before calling [longpoll_delta] again *)
       }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
@@ -432,7 +439,7 @@ module type S = sig
       value on subsequent calls using the returned cursor. *)
 
   val latest_cursor : ?path_prefix: string -> ?include_media_info: bool
-                      -> t -> delta Lwt.t
+                      -> t -> latest_cursor Lwt.t
   (** [latest_cursor t] return the JSON object delta with only the
       field cursor as would be returned by [delta] when has_more is [false].
 

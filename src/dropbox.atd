@@ -70,5 +70,7 @@ type delta = { ~entries: (string * metadata option) list;
                cursor: string;
                ~has_more: bool }
 
+type latest_cursor = { cursor: string }
+
 type longpoll_delta = { changes: bool;
                         ~backoff: int }

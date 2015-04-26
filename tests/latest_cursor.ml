@@ -7,10 +7,10 @@ module D = Dropbox_lwt_unix
 
 let main t args =
   match args with
-  | [] -> D.delta t >>= fun delta -> Lwt_io.printlf "%s"
-                                       (Dropbox_j.string_of_delta delta)
+  | [] -> D.latest_cursor t >>= fun delta -> Lwt_io.printlf "%s"
+                                (Dropbox_j.string_of_latest_cursor delta)
   | [path_prefix] -> D.latest_cursor ~path_prefix t >>= fun delta ->
-                     Lwt_io.printlf "%s" (Dropbox_j.string_of_delta delta)
+      Lwt_io.printlf "%s" (Dropbox_j.string_of_latest_cursor delta)
   | _ -> Lwt_io.printf "The function must take the arguments like above"
 
 let () =

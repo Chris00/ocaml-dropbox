@@ -192,6 +192,10 @@ module type S = sig
         cursor: string;
         has_more: bool }
 
+  type latest_cursor
+    = Dropbox_t.latest_cursor
+    ={ cursor: string }
+
   type longpoll_delta
     = Dropbox_t.longpoll_delta
     = { changes: bool;
@@ -205,11 +209,11 @@ module type S = sig
                  ?include_media_info: bool -> ?include_membership: bool ->
                  string -> metadata option Lwt.t
 
-  val delta : ?cursor: string -> ?locale: string -> ?path_prefix: string
-              -> ?include_media_info: bool -> t -> delta Lwt.t
+  val delta : ?cursor: string -> ?locale: string -> ?path_prefix: string ->
+              ?include_media_info: bool -> t -> delta Lwt.t
 
-  val latest_cursor : ?path_prefix: string -> ?include_media_info: bool
-                      -> t -> delta Lwt.t
+  val latest_cursor : ?path_prefix: string -> ?include_media_info: bool ->
+                      t -> latest_cursor Lwt.t
 
   val longpoll_delta : t -> ?timeout: int -> string ->
                        longpoll_delta Lwt.t
@@ -396,7 +400,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query u q in
     Client.post ~headers:(headers t) u >>= check_errors
     >>= fun(_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.delta_of_string body)
+    >>= fun body -> return(Json.latest_cursor_of_string body)
 
   let longpoll_delta t ?(timeout=30) cursor =
     let u = Uri.of_string("https://api-notify.dropbox.com/1/longpoll_delta") in
