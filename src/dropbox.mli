@@ -107,7 +107,7 @@ module type S = sig
         and
         {{:http://tools.ietf.org/html/rfc6819#section-4.4.2.5}4.4.2.5}
         of the OAuth 2.0 threat model spec.
--
+
         @param force_reapprove Whether or not to force the user to
         approve the app again if they've already done so. If [false]
         (default), a user who has already approved the application may
