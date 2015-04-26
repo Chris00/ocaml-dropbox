@@ -13,15 +13,14 @@ let main t args =
   match args with
   | [] ->   D.delta t >>= fun delta ->
             Lwt_io.printlf "%s" (Dropbox_j.string_of_delta delta)
-  | a -> if List.length a = 1 then
-           D.delta t ~path_prefix:(List.hd a) >>= fun delta ->
-           Lwt_io.printlf "%s" (Dropbox_j.string_of_delta delta)
-         else if List.length a = 2 then
-           match List.nth a 1, List.nth a 0 with
-           | cursor, path_prefix -> D.delta t ~cursor ~path_prefix
-                                    >>= fun delta -> Lwt_io.printlf "%s"
-                                          (Dropbox_j.string_of_delta delta)
-         else Lwt_io.printf "The function must take the arguments like above"
+  | [path_prefix] ->
+     D.delta t ~path_prefix >>= fun delta ->
+     Lwt_io.printlf "%s" (Dropbox_j.string_of_delta delta)
+  | [path_prefix; cursor] ->
+     D.delta t ~cursor ~path_prefix >>= fun delta ->
+     Lwt_io.printlf "%s" (Dropbox_j.string_of_delta delta)
+  | _ ->
+     Lwt_io.printf "Usage: delta [path_prefix [delta]]"
 
 let () =
   Common.run main
