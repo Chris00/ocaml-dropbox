@@ -183,6 +183,11 @@ module type S = sig
       contents: metadata list;
     }
 
+  type shared_url = Dropbox_t.shared_url
+              = { url: string;
+                  expires: Date.t;
+                  visibility: string }
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
@@ -190,6 +195,11 @@ module type S = sig
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
                  string -> metadata option Lwt.t
+
+  val shares : t -> ?locale: string -> ?short_url: bool ->
+               string -> shared_url option Lwt.t
+
+  val media : t -> ?locale: string -> string -> shared_url option Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -350,4 +360,24 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query u q in
     Client.get ~headers:(headers t) u
     >>= check_errors_404 metadata_of_response
+
+  let shared_url_of_response (_, body) =
+    Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Some(Json.shared_url_of_string body))
+
+  let shares t ?(locale="") ?(short_url=false) fn =
+    let u = Uri.of_string("https://api.dropbox.com/1/shares/auto/" ^ fn) in
+    let q = [("short_url",[string_of_bool short_url])] in
+    let q = if locale <> "" then ("locale",[locale]) :: q else q in
+    let u = Uri.with_query u q in
+    Client.post ~headers:(headers t) u
+    >>= check_errors_404 shared_url_of_response
+
+  let media t ?locale fn =
+    let u = Uri.of_string("https://api.dropbox.com/1/media/auto/" ^ fn) in
+    let u = match locale with
+      | Some l -> Uri.with_query u [("locale",[l])]
+      | None -> u in
+    Client.post ~headers:(headers t) u
+    >>= check_errors_404 shared_url_of_response
 end

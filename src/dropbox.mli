@@ -278,6 +278,19 @@ module type S = sig
           contained in this folder. Return nothing if the folder is empty. *)
     }
 
+ type shared_url
+   = Dropbox_t.shared_url
+   = { url: string; (** The actual shared lunk URL *)
+       expires: Date.t; (** The link's expiration date *)
+       visibility: string
+       (** The default value is "PUBLIC".
+           Dropbox for Business users can set restriction on shared link.
+           Possible values include: "PUBLIC" (anyone can view), "TEAM_ONLY"
+           (only the owner's team can view), "PASSWORD" (a password is
+           required), "TEAM_AND_PASSWORD" (a combination of "TEAM_ONLY"
+           and "PASSWORD" restrictions), or "SHARED_FOLDER_ONLY". *)
+     }
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
   (** [get_file t name] return the metadata for the file and a stream of
@@ -346,6 +359,32 @@ module type S = sig
       Not_modified The folder contents have not changed (relies on hash
       parameter).
       Not_acceptable There are too many file entries to return. *)
+
+  val shares : t -> ?locale: string -> ?short_url: bool -> string ->
+               shared_url option Lwt.t
+  (** [shares t path] Return a JSON dictionnary (shared_url) containing
+      a shared link as well as information about the link's visibility
+      and expiration. A return value of [None] means that the file does
+      not exists.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text. See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      @param short_url When [true] (default), the URL returned will be
+      shortened using the Dropbox URL shortener. If [false], the URL will link
+      directly to the file's preview page. *)
+
+  val media : t -> ?locale: string -> string -> shared_url option Lwt.t
+  (** [media t path] Return the JSON object shared_url containing
+      a url that serves the media directly and the link's expiration date.
+      A return value of [None] means that the file does not exists.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text. See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales. *)
   ;;
 end
 
