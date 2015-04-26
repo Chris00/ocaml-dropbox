@@ -79,6 +79,9 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Not_modified -> fail_error body (fun e -> Not_modified e)
+  | `Not_acceptable -> fail_error body (fun e -> Not_acceptable e)
+  | `Not_found -> fail_error body (fun e -> Not_found404 e)
   | _ -> k r
 
 let check_errors =

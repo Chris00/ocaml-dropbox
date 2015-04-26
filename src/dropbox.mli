@@ -356,7 +356,7 @@ module type S = sig
       recent revisions will be returned.
 
       @param locale Specify language settings for user error messages
-      and other language specific text.  See
+      and other language specific text. See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales. *)
 
@@ -364,6 +364,7 @@ module type S = sig
   (** [restore t revision name] return the metadata of the restored file.
 
       @param rev The revision of the file to restore.
+
       @param locale Specify language settings for user error messages
       and other language specific text.  See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
