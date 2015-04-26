@@ -52,6 +52,14 @@ Executable "metadata"
   Install:      false
   CompiledObject: best
 
+Executable "shared_folder"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       shared_folder.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
 Document API
   Title:           API reference for Dropbox
   Type:            OCamlbuild (0.4)

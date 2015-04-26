@@ -164,6 +164,32 @@ module type S = sig
                       duration: float option;
                       lat_long: (float * float) option }
 
+  type user = Dropbox_t.user
+            = { uid: int;
+                display_name: string;
+                same_team: bool;
+                member_id: string }
+
+  type user_info = Dropbox_t.user_info
+                 = { user: user;
+                     access_type: string;
+                     active: bool }
+
+  type shared_folder = Dropbox_t.shared_folder
+                     = { shared_folder_id: string;
+                         shared_folder_name: string;
+                         path: string;
+                         access_type: string;
+                         shared_link_policy: string;
+                         owner: user option;
+                         membership: user_info list }
+
+  type shared_folders = shared_folder list
+
+  type s_f_for_metadata = Dropbox_t.s_f_for_metadata
+                        = { id: int;
+                            membership: user_info list option }
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       bytes: int;
@@ -181,7 +207,10 @@ module type S = sig
       client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
       contents: metadata list;
-    }
+      shared_folder: s_f_for_metadata option;
+      read_only: bool;
+      parent_shared_folder_id: int;
+      modifier: user option }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -190,6 +219,10 @@ module type S = sig
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
                  string -> metadata option Lwt.t
+
+  val shared_folders : ?shared_folder_id: string -> ?include_membership: bool
+                      -> t -> [ `Singleton of shared_folder
+                              | `List of shared_folders ]  Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -336,13 +369,14 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let metadata t ?(file_limit=10_000) ?(hash="") ?(list=true)
                ?(include_deleted=false) ?(rev="") ?(locale="")
-               ?(include_media_info=false) ?include_membership fn =
+               ?(include_media_info=false) ?(include_membership=true) fn =
     let u = Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
     let file_limit = if file_limit < 0 then 0 else file_limit in
     let q = [("list", [string_of_bool list]);
              ("file_limit", [string_of_int file_limit]);
              ("include_deleted", [string_of_bool include_deleted]);
              ("include_media_info", [string_of_bool include_media_info]);
+             ("include_membership", [string_of_bool include_membership])
             ] in
     let q = if hash <> "" then ("hash", [hash]) :: q else q in
     let q = if locale <> "" then ("locale", [locale]) :: q else q in
@@ -350,4 +384,16 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query u q in
     Client.get ~headers:(headers t) u
     >>= check_errors_404 metadata_of_response
+
+  let shared_folders ?shared_folder_id ?(include_membership=true) t =
+    let u = match shared_folder_id with
+    | Some id -> Uri.of_string("https://api.dropbox.com/1/shared_folders/"
+                 ^ id ^ "?include_membership=" ^
+                 (string_of_bool include_membership));
+    | None -> Uri.of_string("https://api.dropbox.com/1/shared_folders/") in
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> match shared_folder_id with
+      | Some _ -> return(`Singleton (Json.shared_folder_of_string body))
+      | None -> return(`List (Json.shared_folders_of_string body))
 end

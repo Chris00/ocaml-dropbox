@@ -48,6 +48,28 @@ type video_info = { time_taken: date nullable;
                     duration: float nullable;
                     lat_long: (float * float) nullable }
 
+type user = { uid: int;
+              display_name: string;
+              ~same_team: bool;
+              ~member_id: string }
+
+type user_info = { user: user;
+                   access_type: string;
+                   active: bool }
+
+type shared_folder = { shared_folder_id: string;
+                       shared_folder_name: string;
+                       path: string;
+                       access_type: string;
+                       shared_link_policy: string;
+                       ?owner: user option;
+                       ~membership: user_info list }
+
+type shared_folders = shared_folder list
+
+type s_f_for_metadata = { ~id: int;
+                          ?membership: user_info list option; }
+
 type metadata = { size: string;
                   bytes: int;
                   ~mime_type: string;
@@ -63,4 +85,8 @@ type metadata = { size: string;
                   ?modified: date option;
                   ?client_mtime: date option;
                   root: root;
-                  ~contents: metadata list }
+                  ~contents: metadata list;
+                  ?shared_folder: s_f_for_metadata option;
+                  ~read_only: bool;
+                  ~parent_shared_folder_id: int;
+                  ?modifier: user option }
