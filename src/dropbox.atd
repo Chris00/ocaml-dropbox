@@ -60,7 +60,7 @@ type metadata = { size: string;
                   ?photo_info: photo_info option;
                   ?video_info: video_info option;
                   icon: string;
-                  modified: date;
+                  ?modified: date option;
                   ?client_mtime: date option;
                   root: root;
                   ~contents: metadata list }
