@@ -32,7 +32,6 @@ type error =
   (** The folder contents have not changed (relies on hash parameter). *)
   | Not_acceptable of error_description
   (** There are too many file entries to return. *)
-  | Not_found404 of error_description
 
 val string_of_error : error -> string
 
@@ -108,7 +107,7 @@ module type S = sig
         and
         {{:http://tools.ietf.org/html/rfc6819#section-4.4.2.5}4.4.2.5}
         of the OAuth 2.0 threat model spec.
-
+-
         @param force_reapprove Whether or not to force the user to
         approve the app again if they've already done so. If [false]
         (default), a user who has already approved the application may
@@ -351,7 +350,7 @@ module type S = sig
 
   val revisions : t -> ?rev_limit: int -> ?locale: string -> string ->
                   revisions Lwt.t
-  (** [revisions t name] return the metadata for the previous revisions of
+  (** [revisions t name] Return the metadata for the previous revisions of
       a file (in a list of metadata). Only revisions up to thirty days old
       are available.
 
@@ -365,17 +364,14 @@ module type S = sig
 
   val restore : t -> ?locale: string -> string -> string ->
                 metadata option Lwt.t
-  (** [restore t revision name] return the metadata of the restored file.
+  (** [restore t revision name] Return the metadata of the restored file.
 
       @param rev The revision of the file to restore.
 
       @param locale Specify language settings for user error messages
-      and other language specific text.  See
+      and other language specific text. See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.
-
-      Possible errors:
-      Not_found Unable to find the revision at that path. *)
   ;;
 end
 

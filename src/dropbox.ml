@@ -22,7 +22,6 @@ type error =
   | Server_error of int * error_description
   | Not_modified of error_description
   | Not_acceptable of error_description
-  | Not_found404 of error_description
 
 (* FIXME: Do we want to render the values as strings closer to OCaml? *)
 let string_of_error = function
@@ -47,8 +46,6 @@ let string_of_error = function
      "Not_modified " ^ Json.string_of_error_description e
   | Not_acceptable e ->
      "Not_acceptable " ^ Json.string_of_error_description e
-  | Not_found404 e ->
-     "Not_found404 " ^ Json.string_of_error_description e
 
 exception Error of error
 
@@ -81,7 +78,6 @@ let check_errors_k k ((rq, body) as r) =
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
   | `Not_modified -> fail_error body (fun e -> Not_modified e)
   | `Not_acceptable -> fail_error body (fun e -> Not_acceptable e)
-  | `Not_found -> fail_error body (fun e -> Not_found404 e)
   | _ -> k r
 
 let check_errors =
@@ -368,6 +364,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let revisions t ?(rev_limit=10) ?(locale="") fn =
     let u = Uri.of_string("https://api.dropbox.com/1/revisions/auto/" ^ fn) in
+    let rev_limit = if rev_limit < 0 then 0 else rev_limit in
     let q = [("rev_limit",[string_of_int rev_limit])] in
     let q = if locale <> "" then ("locale",[locale]) :: q else q in
     let u = Uri.with_query u q in
