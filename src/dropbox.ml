@@ -191,7 +191,7 @@ module type S = sig
       photo_info: photo_info option;
       video_info: video_info option;
       icon: string;
-      modified: Date.t;
+      modified: Date.t option;
       client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
       contents: metadata list;
@@ -205,10 +205,10 @@ module type S = sig
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
-  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: string ->
+  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: bool ->
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
-                 string -> metadata Lwt.t
+                 string -> metadata option Lwt.t
 
   val stream_files_put : t -> ?locale: string -> ?overwrite: bool ->
                          ?parent_rev: string -> ?autorename: bool -> string ->
@@ -365,52 +365,45 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
 
-  let metadata t ?(file_limit=10_000) ?hash ?(list="true")
-               ?(include_deleted=false) ?rev ?locale
+  let metadata_of_response (_, body) =
+    Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Some(Json.metadata_of_string body))
+
+  let metadata t ?(file_limit=10_000) ?(hash="") ?(list=true)
+               ?(include_deleted=false) ?(rev="") ?(locale="")
                ?(include_media_info=false) ?include_membership fn =
     let u = Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
-    let param = ("list", [list]) :: ("file_limit",[string_of_int file_limit]) ::
-      ("include_media_info",[string_of_bool include_media_info]) :: [] in
-    (** include_deleted is only applicable when list is set and hash is
-        ignored if list=false. We assume that list is whether true of false.*)
-    let param = match list, hash with
-      | "true", Some h -> ("include_deleted",[string_of_bool include_deleted]) 
-                          :: ("hash",[h]) :: param
-      | "true", None -> ("include_deleted",[string_of_bool include_deleted])
-                        :: param
-      | _, _ -> param in
-    let param = match locale with
-      | Some l -> ("locale", [l]) :: param
-      | None -> param in
-    let param = match rev with
-      | Some rev -> ("rev",[rev]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in
-    Client.get ~headers:(headers t) u >>= check_errors
-    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.metadata_of_string body)
+    let file_limit = if file_limit < 0 then 0 else file_limit in
+    let q = [("list", [string_of_bool list]);
+             ("file_limit", [string_of_int file_limit]);
+             ("include_deleted", [string_of_bool include_deleted]);
+             ("include_media_info", [string_of_bool include_media_info]);
+            ] in
+    let q = if hash <> "" then ("hash", [hash]) :: q else q in
+    let q = if locale <> "" then ("locale", [locale]) :: q else q in
+    let q = if rev <> "" then ("rev", [rev]) :: q else q in
+    let u = Uri.with_query u q in
+    Client.get ~headers:(headers t) u
+    >>= check_errors_404 metadata_of_response
 
-  let stream_files_put t ?locale ?(overwrite=true) ?parent_rev 
+  let stream_files_put t ?(locale="") ?(overwrite=true) ?(parent_rev="") 
                        ?(autorename=true) fn len stream =
     (* let headers = headers t in *)
     let headers = Cohttp.Header.add (headers t)
       "Content-Length" (string_of_int len) in
     let u = Uri.of_string("https://api-content.dropbox.com\
                            /1/files_put/auto/" ^ fn) in
-    let param = [("overwrite", [string_of_bool overwrite]);
-      ("autorename", [string_of_bool autorename])] in
-    let param = match locale with
-      | Some l -> ("locale", [l]) :: param
-      | None -> param in
-    let param = match parent_rev with
-      | Some p_rev -> ("parent_rev",[p_rev]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in
+    let q = [("overwrite", [string_of_bool overwrite]);
+             ("autorename", [string_of_bool autorename])] in
+    let q = if locale <> "" then ("locale", [locale]) :: q else q in
+    let q = if parent_rev <> "" then ("parent_rev",[parent_rev]) :: q
+            else q in
+    let u = Uri.with_query u q in
     Client.put ~headers ~body:(Cohttp_lwt_body.of_stream stream) u
     >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
 
-  let cohttp_body_files_put t ?locale ?(overwrite=true) ?parent_rev 
+  let cohttp_body_files_put t ?(locale="") ?(overwrite=true) ?(parent_rev="") 
                             ?(autorename=true) fn len stream =
     let headers = headers t in
  (*   let headers = Cohttp.Header.add (headers t)
@@ -418,15 +411,12 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u =
       Uri.of_string("https://api-content.dropbox.com\
                      /1/files_put/auto/" ^ fn) in
-    let param = [("overwrite", [string_of_bool overwrite]);
-      ("autorename", [string_of_bool autorename])] in
-    let param = match locale with
-      | Some l -> ("locale", [l]) :: param
-      | None -> param in
-    let param = match parent_rev with
-      | Some p_rev -> ("parent_rev",[p_rev]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in
+    let q = [("overwrite", [string_of_bool overwrite]);
+             ("autorename", [string_of_bool autorename])] in
+    let q = if locale <> "" then ("locale", [locale]) :: q else q in
+    let q = if parent_rev <> "" then ("parent_rev",[parent_rev]) :: q
+            else q in
+    let u = Uri.with_query u q in
     Client.put ~headers ~body:stream u
     >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
@@ -434,33 +424,30 @@ module Make(Client: Cohttp_lwt.Client) = struct
   let chunked_upload t ?upload_id ?offset chunked_data =
     let u =
       Uri.of_string("https://api-content.dropbox.com/1/chunked_upload") in
-    let param = match upload_id with
+    let q = match upload_id with
       | Some id -> [("upload_id",[id])]
       | None -> [] in
-    let param = match offset with
-      | Some offset -> ("offset",[string_of_int offset]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in
+    let q = match offset with
+      | Some offset -> ("offset",[string_of_int offset]) :: q
+      | None -> q in
+    let u = Uri.with_query u q in
     Client.put ~body:chunked_data ~chunked:true ~headers:(headers t)  u
     >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.chunked_upload_of_string body)
 
 
-  let commit_chunked_upload t ?locale ?(overwrite=true) ?parent_rev
+  let commit_chunked_upload t ?(locale="") ?(overwrite=true) ?(parent_rev="")
                             ?(autorename=true) upload_id fn =
     let u = Uri.of_string("https://api-content.dropbox.com/1\
                            /commit_chunked_upload/auto/" ^ fn) in
-    let param = [("overwrite",[string_of_bool overwrite]);
-      ("autorename",[string_of_bool autorename]);
-      ("upload_id",[upload_id])] in
-    let param = match locale with
-      | Some l -> ("locale",[l]) :: param
-      | None -> param in
-    let param = match parent_rev with
-      | Some rev -> ("parent_rev",[rev]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in 
-    Client.post ~headers:(headers t) u
-    >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    let q = [("overwrite",[string_of_bool overwrite]);
+             ("autorename",[string_of_bool autorename]);
+             ("upload_id",[upload_id])] in
+    let q = if locale <> "" then ("locale", [locale]) :: q else q in
+    let q = if parent_rev <> "" then ("parent_rev",[parent_rev]) :: q
+            else q in
+    let u = Uri.with_query u q in
+    Client.post ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
 end
