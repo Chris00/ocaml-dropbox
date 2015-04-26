@@ -296,9 +296,10 @@ module type S = sig
   val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: bool ->
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
-                 string -> metadata Lwt.t
+                 string -> metadata option Lwt.t
   (** [metadata t path] return the metadata for the file or the folder
-      [path].
+      [path].  A return value of [None] means that the file does
+      not exists.
 
       @param file_limit Default is 10,000 (max is 25,000). When listing a
       folder, the service won't report listings containing more than the
