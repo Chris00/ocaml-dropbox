@@ -13,7 +13,7 @@ let main t args =
                                     (Dropbox_j.string_of_metadata metadata)
                  | None -> Lwt_io.printlf "No file %s" fn)
   | _ -> Lwt_io.printf "Error, the function must take on command line \
-                      two arguments: the path of the file and the rev.\n"
+                        two arguments: the path of the file and the rev."
 
 let () =
   Common.run main
