@@ -179,11 +179,7 @@ module type S = sig
       photo_info: photo_info option;
       video_info: video_info option;
       icon: string;
-<<<<<<< HEAD
-      modified: Date.t;
-=======
       modified: Date.t option;
->>>>>>> upstream/master
       client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
       contents: metadata list;
@@ -191,7 +187,7 @@ module type S = sig
 
   type delta
     = Dropbox_t.delta
-    = { entries: (string * metadata) list;
+    = { entries: (string * metadata option) list;
         reset: bool;
         cursor: string;
         has_more: bool }
@@ -207,8 +203,7 @@ module type S = sig
   val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: bool ->
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
-<<<<<<< HEAD
-                 string -> metadata Lwt.t
+                 string -> metadata option Lwt.t
 
   val delta : ?cursor: string -> ?locale: string -> ?path_prefix: string
               -> ?include_media_info: bool -> t -> delta Lwt.t
@@ -216,10 +211,9 @@ module type S = sig
   val latest_cursor : ?path_prefix: string -> ?include_media_info: bool
                       -> t -> delta Lwt.t
 
-  val longpoll_delta : t -> ?timeout: int -> string -> longpoll_delta Lwt.t
-=======
-                 string -> metadata option Lwt.t
->>>>>>> upstream/master
+  val longpoll_delta : t -> ?timeout: int -> string ->
+                       longpoll_delta Lwt.t
+
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -368,64 +362,6 @@ module Make(Client: Cohttp_lwt.Client) = struct
                ?(include_deleted=false) ?(rev="") ?(locale="")
                ?(include_media_info=false) ?include_membership fn =
     let u = Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
-<<<<<<< HEAD
-    let param = ("list", [list]) :: ("file_limit",[string_of_int file_limit]) ::
-      ("include_media_info",[string_of_bool include_media_info]) :: [] in
-    (** include_deleted is only applicable when list is set and hash is
-        ignored if list=false. We assume that list is whether true of false.*)
-    let param = match list, hash with
-      | "true", Some h -> ("include_deleted",[string_of_bool include_deleted]) 
-                          :: ("hash",[h]) :: param
-      | "true", None -> ("include_deleted",[string_of_bool include_deleted])
-                        :: param
-      | _, _ -> param in
-    let param = match locale with
-      | Some l -> ("locale", [l]) :: param
-      | None -> param in
-    let param = match rev with
-      | Some rev -> ("rev",[rev]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in
-    Client.get ~headers:(headers t) u >>= check_errors
-    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.metadata_of_string body)
-
-  let delta ?cursor ?locale ?path_prefix ?(include_media_info=false) t =
-    let u = Uri.of_string("https://api.dropbox.com/1/delta") in
-    let param = [("include_media_info",[string_of_bool include_media_info])] in
-    let param = match cursor with
-      | Some cursor -> ("cursor",[cursor]) :: param
-      | None -> param in
-    let param = match locale with
-      | Some locale -> ("locale",[locale]) :: param
-      | None -> param in
-    let param = match path_prefix with
-      | Some path -> ("path_prefix",[path]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in
-    Client.post ~headers:(headers t) u >>= check_errors
-    >>= fun(_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.delta_of_string body)
-
-  let latest_cursor ?path_prefix ?(include_media_info=false) t =
-    let u = Uri.of_string("https://api.dropbox.com/1/delta/latest_cursor") in
-    let param = [("include_media_info",[string_of_bool include_media_info])] in
-    let param = match path_prefix with
-      | Some path_prefix -> ("path_prefix",[path_prefix]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in
-    Client.post ~headers:(headers t) u >>= check_errors
-    >>= fun(_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.delta_of_string body)
-
-  let longpoll_delta t ?(timeout=30) cursor =
-    let u = Uri.of_string("https://api-notify.dropbox.com/1/longpoll_delta") in
-    let param = [("timeout",[string_of_int timeout]); ("cursor",[cursor])] in
-    let u = Uri.with_query u param in
-    Client.get ~headers:(headers t) u >>= check_errors
-    >>= fun(_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.longpoll_delta_of_string body)
-=======
     let file_limit = if file_limit < 0 then 0 else file_limit in
     let q = [("list", [string_of_bool list]);
              ("file_limit", [string_of_int file_limit]);
@@ -438,5 +374,35 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query u q in
     Client.get ~headers:(headers t) u
     >>= check_errors_404 metadata_of_response
->>>>>>> upstream/master
+
+  let delta ?(cursor="") ?(locale="") ?(path_prefix="")
+            ?(include_media_info=false) t =
+    let u = Uri.of_string("https://api.dropbox.com/1/delta") in
+    let q = [("include_media_info",[string_of_bool include_media_info])] in
+    let q = if cursor <> "" then ("cursor",[cursor]) :: q else q in
+    let q = if locale <> "" then ("locale",[locale]) :: q else q in
+    let q = if path_prefix <> "" then("path_prefix",[path_prefix]) :: q
+            else q in
+    let u = Uri.with_query u q in
+    Client.post ~headers:(headers t) u >>= check_errors
+    >>= fun(_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.delta_of_string body)
+
+  let latest_cursor ?(path_prefix="") ?(include_media_info=false) t =
+    let u = Uri.of_string("https://api.dropbox.com/1/delta/latest_cursor") in
+    let q = [("include_media_info",[string_of_bool include_media_info])] in
+    let q = if path_prefix <> "" then ("path_prefix",[path_prefix]) :: q
+            else q in
+    let u = Uri.with_query u q in
+    Client.post ~headers:(headers t) u >>= check_errors
+    >>= fun(_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.delta_of_string body)
+
+  let longpoll_delta t ?(timeout=30) cursor =
+    let u = Uri.of_string("https://api-notify.dropbox.com/1/longpoll_delta") in
+    let q = [("timeout",[string_of_int timeout]); ("cursor",[cursor])] in
+    let u = Uri.with_query u q in
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun(_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.longpoll_delta_of_string body)
 end

@@ -65,7 +65,7 @@ type metadata = { size: string;
                   root: root;
                   ~contents: metadata list }
 
-type delta = { ~entries: (string * metadata) list;
+type delta = { ~entries: (string * metadata option) list;
                ~reset: bool;
                cursor: string;
                ~has_more: bool }

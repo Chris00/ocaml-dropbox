@@ -8,13 +8,12 @@ module D = Dropbox_lwt_unix
 
 
 let main t args =
-  match args with
-  | [] ->   D.delta t >>= fun delta ->
-            Lwt_io.printlf "%s" (Dropbox_j.string_of_delta delta)
-  | a -> if List.length a = 1 then
-           D.latest_cursor ~path_prefix:(List.hd a) t >>= fun delta ->
-           Lwt_io.printlf "%s" (Dropbox_j.string_of_delta delta)
-         else Lwt_io.printf "The function must take the arguments like above"
+  if args = [] then D.delta t
+    >>= fun delta -> Lwt_io.printlf "%s" (Dropbox_j.string_of_delta delta)
+  else if List.length args = 1 then
+    D.latest_cursor ~path_prefix:(List.hd args) t
+    >>= fun delta -> Lwt_io.printlf "%s" (Dropbox_j.string_of_delta delta)
+  else Lwt_io.printf "The function must take the arguments like above"
 
 let () =
   Common.run main

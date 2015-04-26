@@ -277,7 +277,7 @@ module type S = sig
     }
 
   type delta = Dropbox_t.delta = {
-      entries: (string * metadata) list;
+      entries: (string * metadata option) list;
       (** A list of "delta entries". Each delta entry is a 2-item list of one
           of the following forms:
 
@@ -318,7 +318,7 @@ module type S = sig
       cursor: string;
       (** A string that encodes the latest information that has been returned.
           On the next call to /delta, pass in this value. *)
-      has_more: bool
+      has_more: bool;
       (** If true, then there are more entries available; you can call /delta
           again immediately to retrieve those entries. If 'false', then wait for
           at least five minutes (preferably longer) before checking again. *)
@@ -442,7 +442,8 @@ module type S = sig
       @param include_media_info If true, the returned cursor will be encoded
       with include_media_info set to true for use with /delta. *)
 
-  val longpoll_delta : t -> ?timeout: int -> string -> longpoll_delta Lwt.t
+  val longpoll_delta : t -> ?timeout: int -> string ->
+                       longpoll_delta Lwt.t
   (** [longpoll_delta t] return the JSON object longpoll_delta. The connection
       will block until there are changes available or a timeout occurs.
 
