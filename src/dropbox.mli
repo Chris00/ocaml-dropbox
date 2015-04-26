@@ -32,6 +32,7 @@ type error =
   (** The folder contents have not changed (relies on hash parameter). *)
   | Not_acceptable of error_description
   (** There are too many file entries to return. *)
+  | Unsupported_media_type of error_description
 
 val string_of_error : error -> string
 
@@ -346,6 +347,30 @@ module type S = sig
       Not_modified The folder contents have not changed (relies on hash
       parameter).
       Not_acceptable There are too many file entries to return. *)
+
+  type size =  [ `Xs | `S | `M | `L | `Xl ]
+
+  type format = [ `Jpeg | `Png ]
+
+  val thumbnails : t -> ?format: format -> ?size: size ->
+                   ?start: int -> ?len: int ->string ->
+                   (metadata * string Lwt_stream.t) option Lwt.t
+  (** [thumbnails t path] return the metadata for the thumbnails and a
+      stream of its content.  [None] indicates that the file does not exists.
+
+      This method currently supports files with the following file extensions:
+      "jpg", "jpeg", "png", "tiff", "tif", "gif", and "bmp". Photos that are
+      larger than 20MB in size won't be converted to a thumbnail.
+
+      @param format jpeg (default) or png. For images that are photos, jpeg
+      should be preferred, while png is better for screenshots and digital art.
+
+      @param size One of the following values (default: s):
+      xs (32x32),s (64x64), m (128x128), l (640x480), xl (1024x768).
+
+      Possible errors:
+      Unsupported_media_type The image is invalid and cannot be converted
+      to a thumbnail. *)
   ;;
 end
 

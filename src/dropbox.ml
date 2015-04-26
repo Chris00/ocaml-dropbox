@@ -22,6 +22,7 @@ type error =
   | Server_error of int * error_description
   | Not_modified of error_description
   | Not_acceptable of error_description
+  | Unsupported_media_type of error_description
 
 (* FIXME: Do we want to render the values as strings closer to OCaml? *)
 let string_of_error = function
@@ -46,6 +47,8 @@ let string_of_error = function
      "Not_modified " ^ Json.string_of_error_description e
   | Not_acceptable e ->
      "Not_acceptable " ^ Json.string_of_error_description e
+  | Unsupported_media_type e ->
+     "Unsupported_media_type " ^ Json.string_of_error_description e
 
 exception Error of error
 
@@ -76,6 +79,10 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Not_modified -> fail_error body (fun e -> Not_modified e)
+  | `Not_acceptable -> fail_error body (fun e -> Not_acceptable e)
+  | `Unsupported_media_type -> fail_error body
+                                 (fun e -> Unsupported_media_type e)
   | _ -> k r
 
 let check_errors =
@@ -190,6 +197,14 @@ module type S = sig
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
                  string -> metadata option Lwt.t
+
+  type size =  [ `Xs | `S | `M | `L | `Xl ]
+
+  type format = [ `Jpeg | `Png ]
+
+  val thumbnails : t -> ?format: format -> ?size: size ->
+                   ?start: int -> ?len: int ->string ->
+                   (metadata * string Lwt_stream.t) option Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -350,4 +365,40 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query u q in
     Client.get ~headers:(headers t) u
     >>= check_errors_404 metadata_of_response
+
+  let thumbnails t ?(format=`Jpeg) ?(size=`S) ?start ?len fn =
+    let headers = headers t in
+    let headers, must_download = match start, len with
+      | Some s, Some l ->
+         let s = if s < 0 then 0 else s in
+         if l <= 0 then (Cohttp.Header.add headers "Range" ("bytes=0-0"), false)
+         else
+           let range = string_of_int s ^ "-" ^ string_of_int(s + l - 1) in
+           (Cohttp.Header.add headers "Range" ("bytes=" ^ range),
+            true)
+      | Some s, None ->
+         let range = string_of_int s ^ "-" in
+         (Cohttp.Header.add headers "Range" ("bytes=" ^ range),
+          true)
+      | None, Some l ->
+         if l <= 0 then (Cohttp.Header.add headers "Range" ("bytes=0-0"), false)
+         else
+           (Cohttp.Header.add headers "Range" ("bytes=-" ^ string_of_int l),
+            true)
+      | None, None -> headers, true in
+    let u = Uri.of_string
+      ("https://api-content.dropbox.com/1/thumbnails/auto/" ^ fn) in
+    let q = match size with
+      | `Xs -> [("size",["xs"])]
+      | `S -> [("size",["s"])]
+      | `M -> [("size",["m"])]
+      | `L -> [("size",["l"])]
+      | `Xl -> [("size",["xl"])] in
+    let q = match format with
+      | `Jpeg -> ("format",["jpeg"]) :: q
+      | `Png -> ("format",["png"]) :: q in
+    let u = Uri.with_query u q in
+    Client.get ~headers u
+    >>= check_errors_404 (if must_download then stream_of_file
+                          else empty_stream)
 end

@@ -64,3 +64,8 @@ type metadata = { size: string;
                   ?client_mtime: date option;
                   root: root;
                   ~contents: metadata list }
+
+
+type size = [ Xs | S | M | L | Xl ]
+
+type format = [ Jpeg | Png ]
