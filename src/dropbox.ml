@@ -76,6 +76,8 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Not_modified -> fail_error body (fun e -> Not_modified e)
+  | `Not_acceptable -> fail_error body (fun e -> Not_acceptable e)
   | _ -> k r
 
 let check_errors =
@@ -366,10 +368,9 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = match fn with
       | Some fn -> Uri.of_string("https://api.dropbox.com/1/search/auto/" ^ fn)
       | None -> Uri.of_string("https://api.dropbox.com/1/search/auto/") in
-    let param = ("include_deleted",[string_of_bool include_deleted]) ::
-                ("include_membership",[string_of_bool include_membership])
-                :: ("file_limit",[string_of_int file_limit]) ::
-                ("query",[query]) :: [] in
+    let param = [("include_deleted",[string_of_bool include_deleted]);
+                ("include_membership",[string_of_bool include_membership]);
+                ("file_limit",[string_of_int file_limit]);("query",[query])] in
     let param = match locale with
       | Some l -> ("locale",[l]) :: param
       | None -> param in

@@ -349,7 +349,7 @@ module type S = sig
                ?locale: string -> ?include_membership: bool ->
                ?fn: string -> string -> search Lwt.t
   (** [search query] return the list containing the metadata for all files and
-      folders whose filenamecontains the given search string as a substring.
+      folders whose filename contains the given search string as a substring.
 
       @param path The path to the folder you want to search from.
 
