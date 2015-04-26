@@ -179,7 +179,7 @@ module type S = sig
       photo_info: photo_info option;
       video_info: video_info option;
       icon: string;
-      modified: Date.t;
+      modified: Date.t option;
       client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
       contents: metadata list;
@@ -190,10 +190,10 @@ module type S = sig
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
-  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: string ->
+  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: bool ->
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
-                 string -> metadata Lwt.t
+                 string -> metadata option Lwt.t
 
   val search : t -> ?file_limit: int -> ?include_deleted: bool ->
                ?locale: string -> ?include_membership: bool ->
@@ -338,43 +338,39 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
 
-  let metadata t ?(file_limit=10_000) ?hash ?(list="true")
-               ?(include_deleted=false) ?rev ?locale
+  let metadata_of_response (_, body) =
+    Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Some(Json.metadata_of_string body))
+
+  let metadata t ?(file_limit=10_000) ?(hash="") ?(list=true)
+               ?(include_deleted=false) ?(rev="") ?(locale="")
                ?(include_media_info=false) ?include_membership fn =
     let u = Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
-    let param = ("list", [list]) :: ("file_limit",[string_of_int file_limit]) ::
-      ("include_media_info",[string_of_bool include_media_info]) :: [] in
-    (** include_deleted is only applicable when list is set and hash is
-        ignored if list=false. We assume that list is whether true of false.*)
-    let param = match list, hash with
-      | "true", Some h -> ("include_deleted",[string_of_bool include_deleted]) 
-                          :: ("hash",[h]) :: param
-      | "true", None -> ("include_deleted",[string_of_bool include_deleted])
-                        :: param
-      | _, _ -> param in
-    let param = match locale with
-      | Some l -> ("locale", [l]) :: param
-      | None -> param in
-    let param = match rev with
-      | Some rev -> ("rev",[rev]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in
-    Client.get ~headers:(headers t) u >>= check_errors
-    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.metadata_of_string body)
+    let file_limit = if file_limit < 0 then 0 else file_limit in
+    let q = [("list", [string_of_bool list]);
+             ("file_limit", [string_of_int file_limit]);
+             ("include_deleted", [string_of_bool include_deleted]);
+             ("include_media_info", [string_of_bool include_media_info]);
+            ] in
+    let q = if hash <> "" then ("hash", [hash]) :: q else q in
+    let q = if locale <> "" then ("locale", [locale]) :: q else q in
+    let q = if rev <> "" then ("rev", [rev]) :: q else q in
+    let u = Uri.with_query u q in
+    Client.get ~headers:(headers t) u
+    >>= check_errors_404 metadata_of_response
 
   let search t ?(file_limit=1000) ?(include_deleted=false)
-             ?locale ?(include_membership=false) ?fn query =
+             ?(locale="") ?(include_membership=false) ?fn query =
     let u = match fn with
       | Some fn -> Uri.of_string("https://api.dropbox.com/1/search/auto/" ^ fn)
       | None -> Uri.of_string("https://api.dropbox.com/1/search/auto/") in
-    let param = [("include_deleted",[string_of_bool include_deleted]);
-                ("include_membership",[string_of_bool include_membership]);
-                ("file_limit",[string_of_int file_limit]);("query",[query])] in
-    let param = match locale with
-      | Some l -> ("locale",[l]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in
+    let file_limit = if file_limit < 0 then 0 else file_limit in
+    let q = [("include_deleted",[string_of_bool include_deleted]);
+             ("include_membership",[string_of_bool include_membership]);
+             ("file_limit",[string_of_int file_limit]); ("query",[query])
+            ] in
+    let q = if locale <> "" then ("locale",[locale]) :: q else q in
+    let u = Uri.with_query u q in
     Client.get ~headers:(headers t) u >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.search_of_string body)
