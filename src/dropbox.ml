@@ -187,7 +187,7 @@ module type S = sig
 
   type delta
     = Dropbox_t.delta
-    = { entries: (string * metadata) list;
+    = { entries: (string * metadata option) list;
         reset: bool;
         cursor: string;
         has_more: bool }

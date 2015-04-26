@@ -277,15 +277,16 @@ module type S = sig
     }
 
   type delta = Dropbox_t.delta = {
-      entries: (string * metadata) list;
-      (** A list of "delta entries". Each delta entry is a 2-item list of one
-          of the following forms:
+      entries: (string * metadata option) list;
+      (** A list of "delta entries".  Each delta entry is a 2-item
+          list of one of the following forms:
 
-          [<path>, <metadata>] - Indicates that there is a file/folder at the
-          given path. You should add the entry to your local state. The
-          metadata value is the same as what would be returned by the
-          /metadata call, except folder metadata doesn't have hash or contents
-          fields. To correctly process delta entries:
+          [(path, Some metadata)] - Indicates that there is a file/folder
+          at the given path. You should add the entry to your local
+          state. The metadata value is the same as what would be
+          returned by the {!metadata} call, except folder metadata
+          doesn't have hash or contents fields.  To correctly process
+          delta entries:
 
           - If the new entry includes parent folders that don't yet exist in
             your local state, create those parent folders in your local state.
@@ -303,25 +304,35 @@ module type S = sig
             apply the read-only permission recursively to all files within the
             shared folder.
 
-          [<path>, null] - Indicates that there is no file/folder at the given
-          path. To update your local state to match, anything at path and all
-          its children should be deleted. Deleting a folder in your Dropbox
-          will sometimes send down a single deleted entry for that folder, and
-          sometimes separate entries for the folder and all child paths. If
-          your local state doesn't have anything at path, ignore this entry. *)
+          [(path, None)] - Indicates that there is no file/folder at
+          the given path. To update your local state to match,
+          anything at path and all its children should be
+          deleted.  Deleting a folder in your Dropbox will sometimes
+          send down a single deleted entry for that folder, and
+          sometimes separate entries for the folder and all child
+          paths.  If your local state doesn't have anything at path,
+          ignore this entry.
+
+          Note: Dropbox treats file names in a case-insensitive but
+          case-preserving way. To facilitate this, the [path] values
+          above are lower-cased versions of the actual path. The last
+          path component of the [metadata] value will be
+          case-preserved. *)
       reset: bool;
-      (** If true, clear your local state before processing the delta entries.
-          reset is always true on the initial call to /delta  (i.e. when no
-          cursor is passed in). Otherwise, it is true in rare situations,
-          such as after server or account maintenance, or if a user deletes
-          their app folder. *)
+      (** If [true], clear your local state before processing the
+          delta entries.  reset is always true on the initial call to
+          {!delta} (i.e., when no cursor is passed in).  Otherwise, it is
+          true in rare situations, such as after server or account
+          maintenance, or if a user deletes their app folder. *)
       cursor: string;
-      (** A string that encodes the latest information that has been returned.
-          On the next call to /delta, pass in this value. *)
-      has_more: bool
-      (** If true, then there are more entries available; you can call /delta
-          again immediately to retrieve those entries. If 'false', then wait for
-          at least five minutes (preferably longer) before checking again. *)
+      (** A string that encodes the latest information that has been
+          returned.  On the next call to {!delta}, pass in this
+          value. *)
+      has_more: bool;
+      (** If [true], then there are more entries available; you can
+          call {!delta} again immediately to retrieve those entries.  If
+          [false], then wait for at least five minutes (preferably
+          longer) before checking again. *)
       }
 
   type longpoll_delta
@@ -400,39 +411,45 @@ module type S = sig
       parameter).
       Not_acceptable There are too many file entries to return. *)
 
-  val delta : ?cursor: string -> ?locale: string -> ?path_prefix: string
-              -> ?include_media_info: bool -> t -> delta Lwt.t
-  (** [delta t] return the JSON object delta.
+  val delta : ?cursor: string -> ?locale: string -> ?path_prefix: string ->
+              ?include_media_info: bool -> t -> delta Lwt.t
+  (** [delta t] return the delta.  This is a way of letting you keep
+      up with changes to files and folders in a user's Dropbox.
+      Deltas are instructions on how to update your local state to
+      match the server's state.
 
       @param cursor A string that is used to keep track of your current state.
       On the next call pass in this value to return delta entries that have
       been recorded since the cursor was returned.
 
       @param locale Specify language settings for user error messages
-      and other language specific text.  See
+      and other language specific text.  See the
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.
 
-      @param path_prefix If present, this parameter filters the response
-      to only include entries at or under the specified path. For example,
-      a path_prefix of "/Photos/Vacation" will return entries for the path
-      "/Photos/Vacation" and any files and folders under that path. If you
-      use the path_prefix parameter, you must continue to pass the correct
-      prefix on subsequent calls using the returned cursor. You can switch
-      the path_prefix on any existing cursor to a descendant of the existing
-      path_prefix on subsequent calls to /delta. For example if your cursor
-      has no path_prefix, you can switch to any path_prefix. If your cursor
-      has a path_prefix of "/Photos", you can switch it to "/Photos/Vacaction".
+      @param path_prefix If present, this parameter filters the
+      response to only include entries at or under the specified
+      path. For example, a path_prefix of "/Photos/Vacation" will
+      return entries for the path "/Photos/Vacation" and any files and
+      folders under that path.  If you use the [path_prefix]
+      parameter, you must continue to pass the correct prefix on
+      subsequent calls using the returned cursor.  You can switch the
+      path_prefix on any existing cursor to a descendant of the
+      existing path_prefix on subsequent calls to {!delta}.  For
+      example if your cursor has no [path_prefix], you can switch to
+      any [path_prefix].  If your cursor has a path_prefix of
+      "/Photos", you can switch it to "/Photos/Vacaction".
 
-      @param include_media_info If true, each file will include a photo_info
-      dictionary for photos and a video_info dictionary for videos with
-      additional media info. When include_media_info is specified, files will
-      only appear in delta responses when the media info is ready. If you use
-      the include_media_info parameter, you must continue to pass the same
-      value on subsequent calls using the returned cursor. *)
+      @param include_media_info If true, each file will include a
+      [photo_info] record for photos and a [video_info] record for
+      videos with additional media info.  When [include_media_info] is
+      specified, files will only appear in delta responses when the
+      media info is ready.  If you use the [include_media_info]
+      parameter, you must continue to pass the same value on
+      subsequent calls using the returned cursor. *)
 
-  val latest_cursor : ?path_prefix: string -> ?include_media_info: bool
-                      -> t -> delta Lwt.t
+  val latest_cursor : ?path_prefix: string -> ?include_media_info: bool ->
+                      t -> delta Lwt.t
   (** [latest_cursor t] return the JSON object delta with only the
       field cursor as would be returned by /delta when has_more is false.
 
