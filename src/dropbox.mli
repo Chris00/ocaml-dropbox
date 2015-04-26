@@ -371,7 +371,7 @@ module type S = sig
       @param locale Specify language settings for user error messages
       and other language specific text. See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
-      documentation} for more information about supported locales.
+      documentation} for more information about supported locales. *)
   ;;
 end
 
