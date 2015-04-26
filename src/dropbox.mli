@@ -340,9 +340,10 @@ module type S = sig
 
   type longpoll_delta
     = Dropbox_t.longpoll_delta
-    = { changes: bool; (** Incidate whether new changes are available *)
-        backoff: int   (** If present, it indicates how many seconds you code
-                           should wait before calling /longpoll_delta again *)
+    = { changes: bool; (** Incidate whether new changes are available. *)
+        backoff: int option;
+        (** If present, it indicates how many seconds your code should
+            wait before calling {!longpoll_delta} again. *)
       }
 
   type search = metadata list (** the list containing the metadata for all
@@ -466,24 +467,28 @@ module type S = sig
       encoded with [include_media_info] set to [true] for use with
       {!delta}. *)
 
-  val longpoll_delta : t -> ?timeout: int -> string -> longpoll_delta Lwt.t
-  (** [longpoll_delta t] return the JSON object longpoll_delta. The connection
-      will block until there are changes available or a timeout occurs.
+  val longpoll_delta : t -> ?timeout: int -> cursor -> longpoll_delta Lwt.t
+  (** [longpoll_delta t cursor] blocks the connection until changes
+      are available or a timeout occurs.  In both case, a value [r]
+      will be returned with [r.changes] indicating whether new changes
+      are available.  If this is the case, you should call {!delta} to
+      retrieve the changes. If this value is [false], it means the
+      call to {!longpoll_delta} timed out.  In conjunction with
+      {!delta}, this call gives you a low-latency way to monitor an
+      account for file changes.
 
-      @param cursor A delta cursor as returned from a call to /delta. Note
-      that a cursor returned from a call to /delta with include_media_info=true
-      is incompatible with /longpoll_delta and an error will be returned.
+      The [cursor] is a crusor returned from a call to {!delta}.  Note
+      that a cursor returned from a call to {!delta} with
+      [include_media_info=true] is incompatible with {!longpoll_delta}
+      and an error will be returned.
 
-      @param timeout An optional integer indicating a timeout, in seconds. The
-      default value is 30 seconds, which is also the minimum allowed value.
-      The maximum is 480 seconds. The request will block for at most this
-      length of time, plus up to 90 seconds of random jitter added to avoid
-      the thundering herd problem. Care should be taken when using this
-      parameter, as some network infrastructure does not support long timeouts.
-
-      Possible errors:
-      Invalid_arg One or more parameters were invalid. The response will be
-      of the form {"error": "<reason>"}. *)
+      @param timeout An integer indicating a timeout, in seconds. The
+      default value is 30 seconds, which is also the minimum allowed
+      value.  The maximum is 480 seconds.  The request will block for
+      at most this length of time, plus up to 90 seconds of random
+      jitter added to avoid the thundering herd problem.  Care should
+      be taken when using this parameter, as some network
+      infrastructure does not support long timeouts. *)
 
   val search : t -> ?file_limit: int -> ?include_deleted: bool ->
                ?locale: string -> ?include_membership: bool ->
