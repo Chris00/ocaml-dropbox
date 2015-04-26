@@ -278,6 +278,12 @@ module type S = sig
           contained in this folder. Return nothing if the folder is empty. *)
     }
 
+  type copy_ref
+    = Dropbox_t.copy_ref
+    = { copy_ref: string; (** A copy_ref to the specified file *)
+        expires: Date.t   (** The link's expiration date *)
+      }
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
   (** [get_file t name] return the metadata for the file and a stream of
@@ -346,6 +352,12 @@ module type S = sig
       Not_modified The folder contents have not changed (relies on hash
       parameter).
       Not_acceptable There are too many file entries to return. *)
+
+  val copy_ref : t -> string -> copy_ref option Lwt.t
+  (** [copy_ref t name] return a JSON dictionnary containing a copy_ref to
+      the specified file and the link's expiration date. copy_ref can be used
+      to copy that file to another user's Dropbox by passing it in as the
+      from_copy_ref parameter on [fileops/copy]. *)
   ;;
 end
 
