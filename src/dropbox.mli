@@ -383,14 +383,14 @@ module type S = sig
       will be automatically renamed to avoid the conflict. (For example,
       test.txt might be automatically renamed to test (1).txt.) The new name
       can be obtained from the returned metadata. If false, the call will fail
-      with a 409 (Conflict) response code.
+      with a Conflict response code.
 
       Possible errors:
-      409 The call failed because a conflict occurred. This means a file
+      Conflict The call failed because a conflict occurred. This means a file
       already existed at the specified path, overwrite was false, and the
       parent_rev (if specified) didn't match the current rev.
-      411 Missing Content-Length header (this endpoint doesn't support HTTP
-      chunked transfer encoding). *)
+      Length_required Missing Content-Length header (this endpoint doesn't
+      support HTTP chunked transfer encoding). *)
 
   val cohttp_body_files_put : t -> ?locale: string -> ?overwrite: bool ->
                               ?parent_rev: string -> ?autorename: bool ->
@@ -412,10 +412,10 @@ module type S = sig
       expected offset.
 
       Possible errors:
-      404 The upload_id does not exist or has expired.
-      400 The offset parameter does not match up with what the server expects.
-      The body of the error response will be JSON similar to the above,
-      indicating the correct offset to upload.
+      Not_found 404 The upload_id does not exist or has expired.
+      Invalid_arg The offset parameter does not match up with what the server
+      expects. The body of the error response will be JSON similar to the
+      above, indicating the correct offset to upload.
    *)
   val commit_chunked_upload : t -> ?locale: string -> ?overwrite: bool ->
                               ?parent_rev: string -> ?autorename: bool ->
@@ -443,17 +443,17 @@ module type S = sig
       will be automatically renamed to avoid the conflict. (For example,
       test.txt might be automatically renamed to test (1).txt.) The new name
       can be obtained from the returned metadata. If false, the call will fail
-      with a 409 (Conflict) response code.
+      with a Conflict response code.
 
       @param upload_id Used to identify the chunked upload session you'd like
       to commit.
 
       Possible errors:
-      409 The call failed because a conflict occurred. This means a file
+      Conflict The call failed because a conflict occurred. This means a file
       already existed at the specified path, overwrite was false, and the
       parent_rev (if specified) didn't match the current rev.
-      400 Returned if the request does not contain an upload_id or if there is
-      no chunked upload matching the given upload_id. *)
+      Invalid_arg Returned if the request does not contain an upload_id or if
+      there is no chunked upload matching the given upload_id. *)
   ;;
 end
 

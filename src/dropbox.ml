@@ -397,8 +397,8 @@ module Make(Client: Cohttp_lwt.Client) = struct
       "Content-Length" (string_of_int len) in
     let u = Uri.of_string("https://api-content.dropbox.com\
                            /1/files_put/auto/" ^ fn) in
-    let param = ("overwrite", [string_of_bool overwrite]) ::
-      ("autorename", [string_of_bool autorename]) :: [] in
+    let param = [("overwrite", [string_of_bool overwrite]);
+      ("autorename", [string_of_bool autorename])] in
     let param = match locale with
       | Some l -> ("locale", [l]) :: param
       | None -> param in
@@ -418,8 +418,8 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u =
       Uri.of_string("https://api-content.dropbox.com\
                      /1/files_put/auto/" ^ fn) in
-    let param = ("overwrite", [string_of_bool overwrite]) ::
-      ("autorename", [string_of_bool autorename]) :: [] in
+    let param = [("overwrite", [string_of_bool overwrite]);
+      ("autorename", [string_of_bool autorename])] in
     let param = match locale with
       | Some l -> ("locale", [l]) :: param
       | None -> param in
@@ -435,7 +435,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u =
       Uri.of_string("https://api-content.dropbox.com/1/chunked_upload") in
     let param = match upload_id with
-      | Some id -> ("upload_id",[id]) :: []
+      | Some id -> [("upload_id",[id])]
       | None -> [] in
     let param = match offset with
       | Some offset -> ("offset",[string_of_int offset]) :: param
@@ -450,9 +450,9 @@ module Make(Client: Cohttp_lwt.Client) = struct
                             ?(autorename=true) upload_id fn =
     let u = Uri.of_string("https://api-content.dropbox.com/1\
                            /commit_chunked_upload/auto/" ^ fn) in
-    let param = ("overwrite",[string_of_bool overwrite]) ::
-      ("autorename",[string_of_bool autorename]) ::
-      ("upload_id",[upload_id]) :: [] in
+    let param = [("overwrite",[string_of_bool overwrite]);
+      ("autorename",[string_of_bool autorename]);
+      ("upload_id",[upload_id])] in
     let param = match locale with
       | Some l -> ("locale",[l]) :: param
       | None -> param in
