@@ -427,7 +427,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let move t ?locale from_path to_path root =
     let u = Uri.of_string("https://api.dropbox.com/1/fileops/move") in
-    let param = ("from_path",[from_path]) :: ("to_path",[to_path]) :: [] in
+    let param = [("from_path",[from_path]);("to_path",[to_path])] in
     let param = match locale with
       | Some l -> ("locale",[l]) :: param
       | None -> param in

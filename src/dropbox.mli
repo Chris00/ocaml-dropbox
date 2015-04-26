@@ -372,9 +372,7 @@ module type S = sig
       Invalid_oauth An invalid copy operation was attempted (e.g. there is
       already a file at the given destination, or trying to copy a shared
       folder).
-
       Not_found404 The source file wasn't found at the specified path.
-
       Not_acceptable Too many files would be involved in the operation for
       it to complete successfully. The limit is currently 10,000 files and
       folders. *)
@@ -413,7 +411,6 @@ module type S = sig
 
       Possible errors:
       Not_found404 No file was found at the specified path.
-
       Not_acceptable Too many files would be involved in the operation for
       it to complete successfully. The limit is currently 10,000 files and
       folders. *)
@@ -442,9 +439,7 @@ module type S = sig
       Invalid_oauth An invalid move operation was attempted (e.g. there
       is already a file at the given destination, or moving a shared folder
       into a shared folder).
-
       Not_found404 The source file wasn't found at the specified path.
-
       Not_acceptable Too many files would be involved in the operation for
       it to complete successfully. The limit is currently 10,000 files and
       folders.*)
