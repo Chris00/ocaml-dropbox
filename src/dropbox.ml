@@ -76,6 +76,8 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Not_modified -> fail_error body (fun e -> Not_modified e)
+  | `Not_acceptable -> fail_error body (fun e -> Not_acceptable e)
   | _ -> k r
 
 let check_errors =
@@ -405,8 +407,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let longpoll_delta t ?(timeout=30) cursor =
     let u = Uri.of_string("https://api-notify.dropbox.com/1/longpoll_delta") in
-    let param = ("timeout",[string_of_int timeout])
-                :: ("cursor",[cursor]) :: [] in
+    let param = [("timeout",[string_of_int timeout]); ("cursor",[cursor])] in
     let u = Uri.with_query u param in
     Client.get ~headers:(headers t) u >>= check_errors
     >>= fun(_, body) -> Cohttp_lwt_body.to_string body
