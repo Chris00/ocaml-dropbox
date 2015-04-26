@@ -179,7 +179,11 @@ module type S = sig
       photo_info: photo_info option;
       video_info: video_info option;
       icon: string;
+<<<<<<< HEAD
       modified: Date.t;
+=======
+      modified: Date.t option;
+>>>>>>> upstream/master
       client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
       contents: metadata list;
@@ -200,9 +204,10 @@ module type S = sig
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
-  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: string ->
+  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: bool ->
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
+<<<<<<< HEAD
                  string -> metadata Lwt.t
 
   val delta : ?cursor: string -> ?locale: string -> ?path_prefix: string
@@ -212,6 +217,9 @@ module type S = sig
                       -> t -> delta Lwt.t
 
   val longpoll_delta : t -> ?timeout: int -> string -> longpoll_delta Lwt.t
+=======
+                 string -> metadata option Lwt.t
+>>>>>>> upstream/master
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -352,10 +360,15 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
 
-  let metadata t ?(file_limit=10_000) ?hash ?(list="true")
-               ?(include_deleted=false) ?rev ?locale
+  let metadata_of_response (_, body) =
+    Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Some(Json.metadata_of_string body))
+
+  let metadata t ?(file_limit=10_000) ?(hash="") ?(list=true)
+               ?(include_deleted=false) ?(rev="") ?(locale="")
                ?(include_media_info=false) ?include_membership fn =
     let u = Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
+<<<<<<< HEAD
     let param = ("list", [list]) :: ("file_limit",[string_of_int file_limit]) ::
       ("include_media_info",[string_of_bool include_media_info]) :: [] in
     (** include_deleted is only applicable when list is set and hash is
@@ -412,4 +425,18 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.get ~headers:(headers t) u >>= check_errors
     >>= fun(_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.longpoll_delta_of_string body)
+=======
+    let file_limit = if file_limit < 0 then 0 else file_limit in
+    let q = [("list", [string_of_bool list]);
+             ("file_limit", [string_of_int file_limit]);
+             ("include_deleted", [string_of_bool include_deleted]);
+             ("include_media_info", [string_of_bool include_media_info]);
+            ] in
+    let q = if hash <> "" then ("hash", [hash]) :: q else q in
+    let q = if locale <> "" then ("locale", [locale]) :: q else q in
+    let q = if rev <> "" then ("rev", [rev]) :: q else q in
+    let u = Uri.with_query u q in
+    Client.get ~headers:(headers t) u
+    >>= check_errors_404 metadata_of_response
+>>>>>>> upstream/master
 end
