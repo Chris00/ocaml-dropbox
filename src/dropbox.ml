@@ -203,7 +203,7 @@ module type S = sig
       photo_info: photo_info option;
       video_info: video_info option;
       icon: string;
-      modified: Date.t;
+      modified: Date.t option;
       client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
       contents: metadata list;
@@ -215,10 +215,10 @@ module type S = sig
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
-  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: string ->
+  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: bool ->
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
-                 string -> metadata Lwt.t
+                 string -> metadata option Lwt.t
 
   val shared_folders : ?shared_folder_id: string -> ?include_membership: bool
                       -> t -> [ `Singleton of shared_folder
@@ -363,30 +363,27 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
 
-  let metadata t ?(file_limit=10_000) ?hash ?(list="true")
-               ?(include_deleted=false) ?rev ?locale
-               ?(include_media_info=false) ?include_membership fn =
+  let metadata_of_response (_, body) =
+    Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Some(Json.metadata_of_string body))
+
+  let metadata t ?(file_limit=10_000) ?(hash="") ?(list=true)
+               ?(include_deleted=false) ?(rev="") ?(locale="")
+               ?(include_media_info=false) ?(include_membership=true) fn =
     let u = Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
-    let param = ("list", [list]) :: ("file_limit",[string_of_int file_limit]) ::
-      ("include_media_info",[string_of_bool include_media_info]) :: [] in
-    (** include_deleted is only applicable when list is set and hash is
-        ignored if list=false. We assume that list is whether true of false.*)
-    let param = match list, hash with
-      | "true", Some h -> ("include_deleted",[string_of_bool include_deleted]) 
-                          :: ("hash",[h]) :: param
-      | "true", None -> ("include_deleted",[string_of_bool include_deleted])
-                        :: param
-      | _, _ -> param in
-    let param = match locale with
-      | Some l -> ("locale", [l]) :: param
-      | None -> param in
-    let param = match rev with
-      | Some rev -> ("rev",[rev]) :: param
-      | None -> param in
-    let u = Uri.with_query u param in
-    Client.get ~headers:(headers t) u >>= check_errors
-    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.metadata_of_string body)
+    let file_limit = if file_limit < 0 then 0 else file_limit in
+    let q = [("list", [string_of_bool list]);
+             ("file_limit", [string_of_int file_limit]);
+             ("include_deleted", [string_of_bool include_deleted]);
+             ("include_media_info", [string_of_bool include_media_info]);
+             ("include_membership", [string_of_bool include_membership])
+            ] in
+    let q = if hash <> "" then ("hash", [hash]) :: q else q in
+    let q = if locale <> "" then ("locale", [locale]) :: q else q in
+    let q = if rev <> "" then ("rev", [rev]) :: q else q in
+    let u = Uri.with_query u q in
+    Client.get ~headers:(headers t) u
+    >>= check_errors_404 metadata_of_response
 
   let shared_folders ?shared_folder_id ?(include_membership=true) t =
     let u = match shared_folder_id with
