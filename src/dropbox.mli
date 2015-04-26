@@ -212,15 +212,17 @@ module type S = sig
 
   type photo_info
     = Dropbox_t.photo_info
-    = { time_taken: Date.t option; (** The creation time of the photo *)
-        lat_long: float list       (** The GPS coordinates of the photo *)
+    = { time_taken: Date.t option;      (** The creation time of the photo *)
+        lat_long: (float * float) option;
+        (** The GPS coordinates of the photo, if any. *)
       }
 
   type video_info
     = Dropbox_t.video_info
-    = { time_taken: Date.t option; (** The creation time of the video *)
-        duration: float;           (** The video length in ms *)
-        lat_long: float list       (** The GPS coordinates of the video *)
+    = { time_taken: Date.t option;  (** The creation time of the video *)
+        duration: float option;     (** The video length in ms *)
+        lat_long: (float * float) option;
+        (** The GPS coordinates of the video, if any. *)
       }
 
   type metadata = Dropbox_t.metadata = {
