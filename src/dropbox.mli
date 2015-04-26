@@ -278,7 +278,9 @@ module type S = sig
           contained in this folder. Return nothing if the folder is empty. *)
     }
 
-  type delta = Dropbox_t.delta = {
+  type cursor
+
+  type delta = {
       entries: (string * metadata option) list;
       (** A list of "delta entries".  Each delta entry is a 2-item
           list of one of the following forms:
@@ -326,10 +328,9 @@ module type S = sig
           {!delta} (i.e., when no cursor is passed in).  Otherwise, it is
           true in rare situations, such as after server or account
           maintenance, or if a user deletes their app folder. *)
-      cursor: string;
-      (** A string that encodes the latest information that has been
-          returned.  On the next call to {!delta}, pass in this
-          value. *)
+      cursor: cursor;
+      (** Encodes the latest information that has been returned.  On
+          the next call to {!delta}, pass in this value. *)
       has_more: bool;
       (** If [true], then there are more entries available; you can
           call {!delta} again immediately to retrieve those entries.  If
@@ -413,14 +414,14 @@ module type S = sig
       parameter).
       Not_acceptable There are too many file entries to return. *)
 
-  val delta : ?cursor: string -> ?locale: string -> ?path_prefix: string ->
+  val delta : ?cursor: cursor -> ?locale: string -> ?path_prefix: string ->
               ?include_media_info: bool -> t -> delta Lwt.t
   (** [delta t] return the delta.  This is a way of letting you keep
       up with changes to files and folders in a user's Dropbox.
       Deltas are instructions on how to update your local state to
       match the server's state.
 
-      @param cursor A string that is used to keep track of your current state.
+      @param cursor A value that is used to keep track of your current state.
       On the next call pass in this value to return delta entries that have
       been recorded since the cursor was returned.
 
@@ -431,35 +432,36 @@ module type S = sig
 
       @param path_prefix If present, this parameter filters the
       response to only include entries at or under the specified
-      path. For example, a path_prefix of "/Photos/Vacation" will
+      path. For example, a [path_prefix] of ["/Photos/Vacation"] will
       return entries for the path "/Photos/Vacation" and any files and
-      folders under that path.  If you use the [path_prefix]
-      parameter, you must continue to pass the correct prefix on
-      subsequent calls using the returned cursor.  You can switch the
-      path_prefix on any existing cursor to a descendant of the
-      existing path_prefix on subsequent calls to {!delta}.  For
-      example if your cursor has no [path_prefix], you can switch to
-      any [path_prefix].  If your cursor has a path_prefix of
-      "/Photos", you can switch it to "/Photos/Vacaction".
+      folders under that path.  If [cursor] is set, [path_prefix] is
+      interpreted as the sub-path of the [path_prefix] used to create
+      the cursor.  For example if your cursor has no [path_prefix],
+      you can switch to any [path_prefix].  If your cursor has a
+      [path_prefix] of ["/Photos"], then setting [path_prefix =
+      "/Vacaction"] will switch the path for this request to
+      "/Photos/Vacaction".
 
-      @param include_media_info If true, each file will include a
-      [photo_info] record for photos and a [video_info] record for
-      videos with additional media info.  When [include_media_info] is
-      specified, files will only appear in delta responses when the
-      media info is ready.  If you use the [include_media_info]
-      parameter, you must continue to pass the same value on
-      subsequent calls using the returned cursor. *)
+      @param include_media_info If true (default is [false]), each
+      file will include a [photo_info] record for photos and a
+      [video_info] record for videos with additional media info.  When
+      [include_media_info] is specified, files will only appear in
+      delta responses when the media info is ready.  This parameter is
+      ignored when you use a [cursor] (the Dropbox API mandates that
+      the value set at the creation of the cursor is used). *)
 
   val latest_cursor : ?path_prefix: string -> ?include_media_info: bool ->
-                      t -> delta Lwt.t
-  (** [latest_cursor t] return the JSON object delta with only the
-      field cursor as would be returned by /delta when has_more is false.
+                      t -> cursor Lwt.t
+  (** [latest_cursor t] return a cursor (as would be returned by
+      {!delta} when [has_more] is [false]).
 
-      @param path_prefix If present, the returned cursor will be encoded with
-      a path_prefix for the specified path for use with /delta.
+      @param path_prefix If present, the returned cursor will be
+      encoded with a [path_prefix] for the specified path for use with
+      {!delta}.
 
-      @param include_media_info If true, the returned cursor will be encoded
-      with include_media_info set to true for use with /delta. *)
+      @param include_media_info If [true], the returned cursor will be
+      encoded with [include_media_info] set to [true] for use with
+      {!delta}. *)
 
   val longpoll_delta : t -> ?timeout: int -> string -> longpoll_delta Lwt.t
   (** [longpoll_delta t] return the JSON object longpoll_delta. The connection
