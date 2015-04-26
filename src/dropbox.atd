@@ -73,4 +73,4 @@ type delta_json = { ~entries: (string * metadata nullable) list;
 type latest_cursor = { cursor <ocaml name="latest_cursor">: string }
 
 type longpoll_delta = { changes: bool;
-                        ~backoff: int }
+                        ?backoff : int option; }
