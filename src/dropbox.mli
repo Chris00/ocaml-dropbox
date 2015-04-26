@@ -27,6 +27,11 @@ type error =
   | Quota_exceeded of error_description
   (** User is over Dropbox storage quota. *)
   | Server_error of int * error_description
+  (** Server error 5xx *)
+  | Not_modified of error_description
+  (** The folder contents have not changed (relies on hash parameter). *)
+  | Not_acceptable of error_description
+  (** There are too many file entries to return. *)
 
 val string_of_error : error -> string
 
@@ -205,13 +210,26 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.  *)
 
+  type photo_info
+    = Dropbox_t.photo_info
+    = { time_taken: Date.t option; (** The creation time of the photo *)
+        lat_long: float list       (** The GPS coordinates of the photo *)
+      }
+
+  type video_info
+    = Dropbox_t.video_info
+    = { time_taken: Date.t option; (** The creation time of the video *)
+        duration: float;           (** The video length in ms *)
+        lat_long: float list       (** The GPS coordinates of the video *)
+      }
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       (** A human-readable description of the file size (translated by
           locale). *)
       bytes: int;      (** The file size in bytes. *)
       mime_type: string;
-      path: string;    (** Returns the canonical path to the file or folder. *)
+      path: string;    (** The canonical path to the file or folder. *)
       is_dir: bool;    (** Whether the given entry is a folder or not. *)
       is_deleted: bool; (** Whether the given entry is deleted.  (Only
                             interesting if deleted files are returned.)  *)
@@ -227,14 +245,23 @@ module type S = sig
       thumb_exists: bool;
       (** True if the file is an image that can be converted to a
           thumbnail via the {!thumbnails} call. *)
+      photo_info: photo_info option;
+      (** Only returned when the include_media_info parameter is true and the
+          file is an image. A dictionary that includes the creation time
+          (time_taken) and the GPS coordinates (lat_long). *)
+      video_info: video_info option;
+      (** Only returned when the include_media_info parameter is true and the
+          file is a video. A dictionary that includes the creation time
+          (time_taken), the GPS coordinates (lat_long), and the length of the
+          video in milliseconds (duration). *)
       icon: string;
       (** The name of the icon used to illustrate the file type in Dropbox's
           {{:https://www.dropbox.com/static/images/dropbox-api-icons.zip}icon
           library}. *)
-      modified: Date.t;
+      modified: Date.t option;
       (** The last time the file was modified on Dropbox (not included
           for the root folder).  *)
-      client_mtime: Date.t;
+      client_mtime: Date.t option;
       (** For files, this is the modification time set by the desktop
           client when the file was added to Dropbox.  Since this time
           is not verified (the Dropbox server stores whatever the
@@ -244,6 +271,9 @@ module type S = sig
       root: [ `Dropbox | `App_folder ];
       (** The root or top-level folder depending on your access
           level. All paths returned are relative to this root level. *)
+      contents: metadata list;
+      (** For folders, contents is the list of the metadata of the files
+          contained in this folder. Return nothing if the folder is empty. *)
     }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
@@ -252,13 +282,67 @@ module type S = sig
       its content.  [None] indicates that the file does not exists.
 
       @param start The first byte of the file to download.  A negative
-        number is interpreted as [0].  Default: [0].
-      @param len The number of bytes to download.  If [start] is not set,
-        the last [len] bytes of the file are downloaded.  Default: download
-        the entire file (or everything after the position [start],
-        including [start]).  If [start <= 0], the metadata will be present
-        but the stream will be empty. *)
+      number is interpreted as [0].  Default: [0].
 
+      @param len The number of bytes to download.  If [start] is not set,
+      the last [len] bytes of the file are downloaded.  Default: download
+      the entire file (or everything after the position [start],
+      including [start]).  If [start <= 0], the metadata will be present
+      but the stream will be empty. *)
+
+  val metadata : t -> ?file_limit: int -> ?hash: string -> ?list: bool ->
+                 ?include_deleted: bool -> ?rev: string -> ?locale: string ->
+                 ?include_media_info: bool -> ?include_membership: bool ->
+                 string -> metadata Lwt.t
+  (** [metadata t path] return the metadata for the file or the folder
+      [path].
+
+      @param file_limit Default is 10,000 (max is 25,000). When listing a
+      folder, the service won't report listings containing more than the
+      specified amount of files and will instead respond with a
+      [Not_Acceptable] error.
+
+      @param hash Each call to {!metadata} on a folder will return a
+      hash field, generated by hashing all of the metadata contained
+      in that response.  On later calls to {!metadata}, you should
+      provide that value via this parameter so that if nothing has
+      changed, the response will be [Not Modified] status code
+      instead of the full, potentially very large, folder listing.
+      This parameter is ignored if the specified path is associated
+      with a file or if [list=false].
+
+      @param list If [true], the folder's metadata will include a
+      contents field with a list of metadata entries for the contents
+      of the folder.  If [false], the contents field will be empty.
+      Default: [true].
+
+      @param include_deleted Only applicable when list is set.  If
+      this parameter is set to [true], then contents will include the
+      metadata of deleted children.  Note that the target of the
+      metadata call is always returned even when it has been deleted
+      (with [is_deleted] set to [true]) regardless of this flag.
+
+      @param rev If you include a particular revision number, then only the
+      metadata for that revision will be returned.
+
+      @param locale The metadata returned will have its size field translated
+      based on the given locale. For more information see the
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation}.
+
+      @param include_media_info If [true], each file will include a
+      {!photo_info} record for photos and a {!video_info} record for
+      videos with additional media info. If the data isn't available
+      yet, the string pending will be returned instead of a
+      dictionary.
+
+      @param include_membership If true, metadata for a shared folder will
+      include a list of members and a list of groups.
+
+      Possible errors:
+      Not_modified The folder contents have not changed (relies on hash
+      parameter).
+      Not_acceptable There are too many file entries to return. *)
   ;;
 end
 

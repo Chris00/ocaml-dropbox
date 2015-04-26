@@ -41,19 +41,26 @@ type root = [
   | App_folder  <json name="app_folder">
   ]
 
+type photo_info = { ?time_taken: date option;
+                    ~lat_long: float list }
+
+type video_info = { ?time_taken: date option;
+                    ~duration: float;
+                    ~lat_long: float list }
+
 type metadata = { size: string;
                   bytes: int;
                   ~mime_type: string;
                   path: string;
                   is_dir: bool;
                   ~is_deleted: bool <ocaml default="false"> ;
-                  rev: string;
+                  ~rev: string  <ocaml default="">;
                   ~hash: string;
                   thumb_exists: bool;
-                  (* photo_info; *)
-                  (* video_info; *)
+                  ?photo_info: photo_info option;
+                  ?video_info: video_info option;
                   icon: string;
-                  modified: date;
-                  client_mtime: date;
+                  ?modified: date option;
+                  ?client_mtime: date option;
                   root: root;
-                }
+                  ~contents: metadata list }
