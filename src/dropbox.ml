@@ -76,6 +76,8 @@ let check_errors_k k ((rq, body) as r) =
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
+  | `Not_modified -> fail_error body (fun e -> Not_modified e)
+  | `Not_acceptable -> fail_error body (fun e -> Not_acceptable e)
   | _ -> k r
 
 let check_errors =
@@ -183,6 +185,22 @@ module type S = sig
       contents: metadata list;
     }
 
+  type delta
+    = Dropbox_t.delta
+    = { entries: (string * metadata option) list;
+        reset: bool;
+        cursor: string;
+        has_more: bool }
+
+  type latest_cursor
+    = Dropbox_t.latest_cursor
+    ={ cursor: string }
+
+  type longpoll_delta
+    = Dropbox_t.longpoll_delta
+    = { changes: bool;
+        backoff: int }
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
@@ -190,6 +208,16 @@ module type S = sig
                  ?include_deleted: bool -> ?rev: string -> ?locale: string ->
                  ?include_media_info: bool -> ?include_membership: bool ->
                  string -> metadata option Lwt.t
+
+  val delta : ?cursor: string -> ?locale: string -> ?path_prefix: string ->
+              ?include_media_info: bool -> t -> delta Lwt.t
+
+  val latest_cursor : ?path_prefix: string -> ?include_media_info: bool ->
+                      t -> latest_cursor Lwt.t
+
+  val longpoll_delta : t -> ?timeout: int -> string ->
+                       longpoll_delta Lwt.t
+
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -350,4 +378,35 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query u q in
     Client.get ~headers:(headers t) u
     >>= check_errors_404 metadata_of_response
+
+  let delta ?(cursor="") ?(locale="") ?(path_prefix="")
+            ?(include_media_info=false) t =
+    let u = Uri.of_string("https://api.dropbox.com/1/delta") in
+    let q = [("include_media_info",[string_of_bool include_media_info])] in
+    let q = if cursor <> "" then ("cursor",[cursor]) :: q else q in
+    let q = if locale <> "" then ("locale",[locale]) :: q else q in
+    let q = if path_prefix <> "" then("path_prefix",[path_prefix]) :: q
+            else q in
+    let u = Uri.with_query u q in
+    Client.post ~headers:(headers t) u >>= check_errors
+    >>= fun(_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.delta_of_string body)
+
+  let latest_cursor ?(path_prefix="") ?(include_media_info=false) t =
+    let u = Uri.of_string("https://api.dropbox.com/1/delta/latest_cursor") in
+    let q = [("include_media_info",[string_of_bool include_media_info])] in
+    let q = if path_prefix <> "" then ("path_prefix",[path_prefix]) :: q
+            else q in
+    let u = Uri.with_query u q in
+    Client.post ~headers:(headers t) u >>= check_errors
+    >>= fun(_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.latest_cursor_of_string body)
+
+  let longpoll_delta t ?(timeout=30) cursor =
+    let u = Uri.of_string("https://api-notify.dropbox.com/1/longpoll_delta") in
+    let q = [("timeout",[string_of_int timeout]); ("cursor",[cursor])] in
+    let u = Uri.with_query u q in
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun(_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.longpoll_delta_of_string body)
 end
