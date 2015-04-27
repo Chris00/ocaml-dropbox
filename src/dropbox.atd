@@ -41,12 +41,12 @@ type root = [
   | App_folder  <json name="app_folder">
   ]
 
-type photo_info = { ?time_taken: date option;
-                    ~lat_long: float list }
+type photo_info = { time_taken: date nullable;
+                    lat_long: (float * float) nullable }
 
-type video_info = { ?time_taken: date option;
-                    ~duration: float;
-                    ~lat_long: float list }
+type video_info = { time_taken: date nullable;
+                    duration: float nullable;
+                    lat_long: (float * float) nullable }
 
 type metadata = { size: string;
                   bytes: int;
@@ -64,5 +64,15 @@ type metadata = { size: string;
                   ?client_mtime: date option;
                   root: root;
                   ~contents: metadata list }
+
+type delta_json = { ~entries: (string * metadata nullable) list;
+                    reset: bool;
+                    cursor: string;
+                    has_more: bool }
+
+type latest_cursor = { cursor <ocaml name="latest_cursor">: string }
+
+type longpoll_delta = { changes: bool;
+                        ?backoff : int option; }
 
 type revisions = metadata list
