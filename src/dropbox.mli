@@ -278,6 +278,9 @@ module type S = sig
           contained in this folder. Return nothing if the folder is empty. *)
     }
 
+  type metadata_list = metadata list (** The list of the metadata for the
+                                         previous revisions of a file *)
+
   type cursor
 
   type delta = {
@@ -345,10 +348,6 @@ module type S = sig
         (** If present, it indicates how many seconds your code should
             wait before calling {!longpoll_delta} again. *)
       }
-
-  type revisions = metadata list (** The list of the metadata for the
-                                     previous revisions of a file *)
-
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -494,7 +493,7 @@ module type S = sig
 
 
   val revisions : t -> ?rev_limit: int -> ?locale: string -> string ->
-                  revisions Lwt.t
+                  metadata list option Lwt.t
   (** [revisions t name] Return the metadata for the previous revisions of
       a file (in a list of metadata). Only revisions up to thirty days old
       are available.

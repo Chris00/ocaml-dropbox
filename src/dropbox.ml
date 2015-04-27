@@ -185,6 +185,8 @@ module type S = sig
       contents: metadata list;
     }
 
+  type metadata_list = metadata list
+
   type cursor
 
   (* It is better that [delta] is not shared between various
@@ -200,9 +202,6 @@ module type S = sig
     = Dropbox_t.longpoll_delta
     = { changes: bool;
         backoff: int option }
-
-  type revisions = metadata list
-
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -221,7 +220,7 @@ module type S = sig
   val longpoll_delta : t -> ?timeout: int -> cursor -> longpoll_delta Lwt.t
 
   val revisions : t -> ?rev_limit: int -> ?locale: string -> string ->
-                  revisions Lwt.t
+                  metadata list option Lwt.t
 
   val restore : t -> ?locale: string -> string -> string ->
                 metadata option Lwt.t
@@ -472,16 +471,20 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= fun(_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.longpoll_delta_of_string body)
 
+  let metadata_list_of_response (_, body) =
+    Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Some(Json.metadata_list_of_string body))
 
   let revisions t ?(rev_limit=10) ?(locale="") fn =
     let u = Uri.of_string("https://api.dropbox.com/1/revisions/auto/" ^ fn) in
-    let rev_limit = if rev_limit < 0 then 0 else rev_limit in
+    let rev_limit = if rev_limit < 0 then 0
+                    else if rev_limit > 1000 then 1000
+                    else rev_limit in
     let q = [("rev_limit",[string_of_int rev_limit])] in
     let q = if locale <> "" then ("locale",[locale]) :: q else q in
     let u = Uri.with_query u q in
-    Client.get ~headers:(headers t) u >>= check_errors
-    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.revisions_of_string body)
+    Client.get ~headers:(headers t) u
+    >>= check_errors_404 metadata_list_of_response
 
   let restore t ?(locale="") rev fn =
     let u = Uri.of_string("https://api.dropbox.com/1/restore/auto/" ^ fn) in
