@@ -278,6 +278,9 @@ module type S = sig
           contained in this folder. Return nothing if the folder is empty. *)
     }
 
+  type metadata_list = metadata list (** The list of the metadata for the
+                                         previous revisions of a file *)
+
   type cursor
 
   type delta = {
@@ -415,6 +418,7 @@ module type S = sig
       parameter).
       Not_acceptable There are too many file entries to return. *)
 
+
   val delta : ?cursor: cursor -> ?locale: string -> ?path_prefix: string ->
               ?include_media_info: bool -> t -> delta Lwt.t
   (** [delta t] return the delta.  This is a way of letting you keep
@@ -486,6 +490,32 @@ module type S = sig
       jitter added to avoid the thundering herd problem.  Care should
       be taken when using this parameter, as some network
       infrastructure does not support long timeouts. *)
+
+
+  val revisions : t -> ?rev_limit: int -> ?locale: string -> string ->
+                  metadata list option Lwt.t
+  (** [revisions t name] Return the metadata for the previous revisions of
+      a file (in a list of metadata). Only revisions up to thirty days old
+      are available.
+
+      @param rev_limit Default is 10. Max is 1,000. Up to this number of
+      recent revisions will be returned.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text. See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales. *)
+
+  val restore : t -> ?locale: string -> string -> string ->
+                metadata option Lwt.t
+  (** [restore t revision name] Return the metadata of the restored file.
+
+      @param rev The revision of the file to restore.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text. See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales. *)
   ;;
 end
 

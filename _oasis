@@ -73,6 +73,20 @@ Executable "longpoll_delta"
   Path:         tests
   MainIs:       longpoll_delta.ml
   BuildDepends: dropbox.lwt
+
+Executable "revisions"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       revisions.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
+Executable "restore"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       restore.ml
+  BuildDepends: dropbox.lwt, unix
   Install:      false
   CompiledObject: best
 

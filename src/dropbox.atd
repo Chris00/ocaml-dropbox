@@ -65,6 +65,8 @@ type metadata = { size: string;
                   root: root;
                   ~contents: metadata list }
 
+type metadata_list = metadata list
+
 type delta_json = { ~entries: (string * metadata nullable) list;
                     reset: bool;
                     cursor: string;
