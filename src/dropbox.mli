@@ -278,6 +278,8 @@ module type S = sig
           contained in this folder. Return nothing if the folder is empty. *)
     }
 
+  type metadata_list = metadata list
+
   type cursor
 
   type delta = {
@@ -345,9 +347,6 @@ module type S = sig
         (** If present, it indicates how many seconds your code should
             wait before calling {!longpoll_delta} again. *)
       }
-
-  type search = metadata list (** the list containing the metadata for all
-                                  files and folders returned by search fct *)
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -492,11 +491,12 @@ module type S = sig
 
   val search : t -> ?file_limit: int -> ?include_deleted: bool ->
                ?locale: string -> ?include_membership: bool ->
-               ?fn: string -> string -> search Lwt.t
+               ?fn: string -> string -> metadata list Lwt.t
   (** [search query] return the list containing the metadata for all files and
       folders whose filename contains the given search string as a substring.
 
-      @param path The path to the folder you want to search from.
+      @param path The path to the folder you want to search from. Must be
+      writen entirely.
 
       @param query The search string. This string is split (on spaces) into
       individual words. Files and folders will be returned if they contain

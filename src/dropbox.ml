@@ -185,6 +185,8 @@ module type S = sig
       contents: metadata list;
     }
 
+  type metadata_list = metadata list
+
   type cursor
 
   (* It is better that [delta] is not shared between various
@@ -200,8 +202,6 @@ module type S = sig
     = Dropbox_t.longpoll_delta
     = { changes: bool;
         backoff: int option }
-
-type search = metadata list
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -221,7 +221,7 @@ type search = metadata list
 
   val search : t -> ?file_limit: int -> ?include_deleted: bool ->
                ?locale: string -> ?include_membership: bool ->
-               ?fn: string -> string -> search Lwt.t
+               ?fn: string -> string -> metadata list Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -482,5 +482,5 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query u param in
     Client.get ~headers:(headers t) u >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.search_of_string body)
+    >>= fun body -> return(Json.metadata_list_of_string body)
 end
