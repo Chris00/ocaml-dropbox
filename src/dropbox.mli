@@ -494,9 +494,12 @@ module type S = sig
                   metadata list option Lwt.t
   (** [revisions t name] Return the metadata for the previous revisions of
       a file (in a list of metadata). Only revisions up to thirty days old
-      are available.
+      are available. A return value of [None] means that the file does
+      not exists.
+
       @param rev_limit Default is 10. Max is 1,000. Up to this number of
       recent revisions will be returned.
+
       @param locale Specify language settings for user error messages
       and other language specific text. See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
@@ -505,7 +508,10 @@ module type S = sig
   val restore : t -> ?locale: string -> string -> string ->
                 metadata option Lwt.t
   (** [restore t revision name] Return the metadata of the restored file.
+      A return value of [None] means that there is no file with such [rev].
+
       @param rev The revision of the file to restore.
+
       @param locale Specify language settings for user error messages
       and other language specific text. See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
