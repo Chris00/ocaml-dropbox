@@ -278,6 +278,8 @@ module type S = sig
           contained in this folder. Return nothing if the folder is empty. *)
     }
 
+  type metadata_list = metadata list
+
   type cursor
 
   type delta = {
@@ -486,6 +488,19 @@ module type S = sig
       jitter added to avoid the thundering herd problem.  Care should
       be taken when using this parameter, as some network
       infrastructure does not support long timeouts. *)
+
+  val revisions : t -> ?rev_limit: int -> ?locale: string -> string ->
+                  metadata list option Lwt.t
+  (** [revisions t name] Return the metadata for the previous revisions of
+      a file (in a list of metadata). Only revisions up to thirty days old
+      are available. A return value of [None] means that the file does
+      not exists.
+      @param rev_limit Default is 10. Max is 1,000. Up to this number of
+      recent revisions will be returned.
+      @param locale Specify language settings for user error messages
+      and other language specific text. See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales. *)
   ;;
 end
 
