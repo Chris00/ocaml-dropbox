@@ -76,6 +76,14 @@ Executable "longpoll_delta"
   Install:      false
   CompiledObject: best
 
+Executable "revisions"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       revisions.ml
+  BuildDepends: dropbox.lwt
+  Install:      false
+  CompiledObject: best
+
 
 Document API
   Title:           API reference for Dropbox
