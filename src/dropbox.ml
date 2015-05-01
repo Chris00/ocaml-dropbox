@@ -221,6 +221,8 @@ module type S = sig
 
   val revisions : t -> ?rev_limit: int -> ?locale: string -> string ->
                   metadata list option Lwt.t
+
+  val restore : t -> ?locale: string -> metadata -> metadata option Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -481,4 +483,16 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query u q in
     Client.get ~headers:(headers t) u
     >>= check_errors_404 metadata_list_of_response
+
+  let restore t ?(locale="") metadata =
+    match metadata.is_dir with
+    | true -> return None
+    | false ->
+      let u = Uri.of_string("https://api.dropbox.com/1/restore/auto/" ^
+                             metadata.path) in
+      let q = [("rev",[metadata.rev])] in
+      let q = if locale <> "" then ("locale",[locale]) :: q else q in
+      let u = Uri.with_query u q in
+      Client.post ~headers:(headers t) u
+      >>= check_errors_404 metadata_of_response
 end

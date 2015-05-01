@@ -495,8 +495,23 @@ module type S = sig
       a file (in a list of metadata). Only revisions up to thirty days old
       are available. A return value of [None] means that the file does
       not exists.
+
       @param rev_limit Default is 10. Max is 1,000. Up to this number of
       recent revisions will be returned.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text. See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales. *)
+
+  val restore : t -> ?locale: string -> metadata -> metadata option Lwt.t
+  (** [restore t revision metadata] Return the metadata of the restored file.
+      A return value of [None] means that [metadata] is a folder, not a file.
+
+      The [metadata] contains the path and the rev of the file we want to
+      restore. A [metadata list] of the rev for a given filename can be
+      obtained from a call to {!revisions}.
+
       @param locale Specify language settings for user error messages
       and other language specific text. See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
