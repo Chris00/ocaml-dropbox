@@ -278,9 +278,6 @@ module type S = sig
           contained in this folder. Return nothing if the folder is empty. *)
     }
 
-  type metadata_list = metadata list (** The list of the metadata for the
-                                         previous revisions of a file *)
-
   type cursor
 
   type delta = {
@@ -493,9 +490,9 @@ module type S = sig
   val revisions : t -> ?rev_limit: int -> ?locale: string -> string ->
                   metadata list option Lwt.t
   (** [revisions t name] Return the metadata for the previous revisions of
-      a file (in a list of metadata). Only revisions up to thirty days old
-      are available. A return value of [None] means that the file does
-      not exists.
+      a file (in a list of metadata).  Only revisions up to thirty days old
+      are available.  A return value of [None] means that the file does
+      not exist.
 
       @param rev_limit Default is 10. Max is 1,000. Up to this number of
       recent revisions will be returned.
@@ -505,12 +502,12 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales. *)
 
-  val restore : t -> ?locale: string -> string -> string ->
+  val restore : t -> ?locale: string -> rev:string -> string ->
                 metadata option Lwt.t
-  (** [restore t revision name] Return the metadata of the restored file.
-      A return value of [None] means that there is no file with such [rev].
-
-      @param rev The revision of the file to restore.
+  (** [restore t rev name] Restores the file path [name] to the
+      previous revision [rev].  Return the metadata of the restored
+      file.  A return value of [None] means that there is no file path
+      [name] with such [rev].
 
       @param locale Specify language settings for user error messages
       and other language specific text. See

@@ -185,8 +185,6 @@ module type S = sig
       contents: metadata list;
     }
 
-  type metadata_list = metadata list
-
   type cursor
 
   (* It is better that [delta] is not shared between various
@@ -222,7 +220,7 @@ module type S = sig
   val revisions : t -> ?rev_limit: int -> ?locale: string -> string ->
                   metadata list option Lwt.t
 
-  val restore : t -> ?locale: string -> string -> string ->
+  val restore : t -> ?locale: string -> rev:string -> string ->
                 metadata option Lwt.t
 
 end
@@ -486,7 +484,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.get ~headers:(headers t) u
     >>= check_errors_404 metadata_list_of_response
 
- let restore t ?(locale="") rev fn =
+ let restore t ?(locale="") ~rev fn =
     let u = Uri.of_string("https://api.dropbox.com/1/restore/auto/" ^ fn) in
     let q = [("rev",[rev])] in
     let q = if locale <> "" then ("locale",[locale]) :: q else q in
