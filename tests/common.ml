@@ -21,6 +21,7 @@ let run ?(args=[]) f =
   let anon s = anon_args := s :: !anon_args in
   let usage_msg = Filename.basename Sys.argv.(0) ^ " [options]" in
   Arg.parse specs anon usage_msg;
+  let anon_args = List.rev !anon_args in
   let main =
     if !token = "" then (
       if !id = "" then (
@@ -39,10 +40,10 @@ let run ?(args=[]) f =
       printf "3. Copy the authorization code:\n";
       let code = String.trim(read_line()) in
       D.OAuth2.token code ~id:!id ~secret:!secret >>= fun token ->
-      f (D.session token) !anon_args
+      f (D.session token) anon_args
     )
     else
-      f (D.session !token) !anon_args in
+      f (D.session !token) anon_args in
   try  Lwt_main.run main
   with Dropbox.Error e ->
     eprintf "Error: %s\n" (Dropbox.string_of_error e)
