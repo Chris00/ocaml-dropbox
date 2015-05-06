@@ -509,6 +509,9 @@ module type S = sig
       file.  A return value of [None] means that there is no file path
       [name] with such [rev].
 
+      If the revision is not well formed or non-existing, the function
+      will fail throwing [Error Dropbox.Invalid_arg].
+
       @param locale Specify language settings for user error messages
       and other language specific text. See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
