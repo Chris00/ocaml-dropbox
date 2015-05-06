@@ -223,6 +223,9 @@ module type S = sig
   val restore : t -> ?locale: string -> rev:string -> string ->
                 metadata option Lwt.t
 
+  val search : t -> ?file_limit: int -> ?include_deleted: bool ->
+               ?locale: string -> ?include_membership: bool ->
+               ?fn: string -> string -> metadata list Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -491,4 +494,23 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query u q in
     Client.post ~headers:(headers t) u
     >>= check_errors_404 metadata_of_response
+
+  let search t ?(file_limit=1000) ?(include_deleted=false)
+             ?(locale="") ?(include_membership=false) ?(fn="") query =
+    let u = if fn <> "" then
+              Uri.of_string("https://api.dropbox.com/1/search/auto/" ^ fn)
+            else Uri.of_string("https://api.dropbox.com/1/search/auto/") in
+    let file_limit = if file_limit < 0 then 0
+                     else if file_limit > 1000 then 1000
+                     else file_limit in
+    let q = [("include_deleted",[string_of_bool include_deleted]);
+             ("include_membership",[string_of_bool include_membership]);
+             ("file_limit",[string_of_int file_limit]);("query",[query])
+            ] in
+    let q = if locale <> "" then ("locale",[locale]) :: q else q in
+    let u = Uri.with_query u q in
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.metadata_list_of_string body)
+
 end

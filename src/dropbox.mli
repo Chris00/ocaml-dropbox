@@ -487,6 +487,7 @@ module type S = sig
       be taken when using this parameter, as some network
       infrastructure does not support long timeouts. *)
 
+
   val revisions : t -> ?rev_limit: int -> ?locale: string -> string ->
                   metadata list option Lwt.t
   (** [revisions t name] Return the metadata for the previous revisions of
@@ -516,6 +517,34 @@ module type S = sig
       and other language specific text. See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales. *)
+
+
+  val search : t -> ?file_limit: int -> ?include_deleted: bool ->
+               ?locale: string -> ?include_membership: bool ->
+               ?fn: string -> string -> metadata list Lwt.t
+  (** [search query] return the list containing the metadata for all files and
+      folders whose filename contains the given search string as a substring.
+
+      @param path The path to the folder you want to search from. Must be
+      written entirely.
+
+      @param query The search string. This string is split (on spaces) into
+      individual words. Files and folders will be returned if they contain
+      all words in the search string.
+
+      @param file_limit The maximum and default value is 1,000. No more than
+      file_limit search results will be returned.
+
+      @param include_deleted If this parameter is set to [true], then files and
+      folders that have been deleted will also be included in the search.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text. See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      @param include_membership If [true], metadata for a shared folder will
+      include a list of members and a list of groups. *)
   ;;
 end
 
