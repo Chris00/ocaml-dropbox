@@ -533,18 +533,20 @@ module type S = sig
       all words in the search string.
 
       @param file_limit The maximum and default value is 1,000. No more than
-      file_limit search results will be returned.
+      [file_limit] search results will be returned.
 
-      @param include_deleted If this parameter is set to [true], then files and
-      folders that have been deleted will also be included in the search.
+      @param include_deleted If this parameter is set to [true], then
+      files and folders that have been deleted will also be included
+      in the search.  Default: [false].
 
       @param locale Specify language settings for user error messages
       and other language specific text. See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.
 
-      @param include_membership If [true], metadata for a shared folder will
-      include a list of members and a list of groups. *)
+      @param include_membership If [true], metadata for a shared
+      folder will include a list of members and a list of groups.
+      Default: [false]. *)
   ;;
 end
 

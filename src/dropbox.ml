@@ -505,8 +505,8 @@ module Make(Client: Cohttp_lwt.Client) = struct
                      else file_limit in
     let q = [("include_deleted",[string_of_bool include_deleted]);
              ("include_membership",[string_of_bool include_membership]);
-             ("file_limit",[string_of_int file_limit]);("query",[query])
-            ] in
+             ("file_limit", [string_of_int file_limit]);
+             ("query", [query]) ] in
     let q = if locale <> "" then ("locale",[locale]) :: q else q in
     let u = Uri.with_query u q in
     Client.get ~headers:(headers t) u >>= check_errors
