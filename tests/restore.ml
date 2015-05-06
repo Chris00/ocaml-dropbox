@@ -7,12 +7,12 @@ module D = Dropbox_lwt_unix
 
 let main t args =
   match args with
-  | [] -> Lwt_io.printlf "No file or folder specified"
-  | [rev; fn] -> D.restore t rev fn >>= (function
-    | Some meta -> Lwt_io.printlf "%s" (Dropbox_j.string_of_metadata meta)
-    | None -> Lwt_io.printlf "No file %s with rev %s." fn rev)
-  | _ -> Lwt_io.printf "Error, the function must take on command line \
-                        two arguments: the path of the file and the rev."
+  | [fn; rev] ->
+     D.restore t ~rev fn >>=
+       (function
+         | Some meta -> Lwt_io.printlf "%s" (Dropbox_j.string_of_metadata meta)
+         | None -> Lwt_io.printlf "No file %s with rev %s." fn rev)
+  | _ -> Lwt_io.printf "Usage: %s <path-to-file> <revision>\n" Sys.argv.(0)
 
 let () =
   Common.run main
