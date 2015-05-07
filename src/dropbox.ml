@@ -233,6 +233,12 @@ module type S = sig
                ?fn: string -> string -> metadata list Lwt.t
 
   val copy_ref : t -> string -> copy_ref option Lwt.t
+
+
+  module Fileops : sig
+
+
+  end
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -537,4 +543,10 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.of_string("https://api.dropbox.com/1/copy_ref/auto/" ^ fn) in
     Client.get ~headers:(headers t) u
     >>= check_errors_404 copy_ref_of_response
+
+
+  module Fileops = struct
+
+
+  end
 end

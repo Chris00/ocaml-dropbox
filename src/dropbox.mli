@@ -561,8 +561,13 @@ module type S = sig
   (** [copy_ref t name] return a [copy_ref] to the specified file.
       A return value of [None] means that the file does not exist.
       {!copy_ref} can be used to copy that file to another user's Dropbox
-      by passing it in as the [from_copy_ref] parameter on {!fileops/copy}. *)
-  ;;
+      by passing it in as the [from_copy_ref] parameter on {!Fileops.copy}. *)
+
+
+  module Fileops : sig
+
+
+  end
 end
 
 module Make(Client: Cohttp_lwt.Client) : S
