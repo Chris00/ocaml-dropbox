@@ -22,7 +22,7 @@ type uri = string wrap
 
 type info = { uid: int;
               display_name: string;
-              ~email_verified: bool  <ocaml default="false"> ;
+              ~email_verified <ocaml default="false">: bool;
               name_details: name_details;
               referral_link: uri;
               ~country: string;
@@ -41,24 +41,23 @@ type root = [
   | App_folder  <json name="app_folder">
   ]
 
-type photo_info = { time_taken: date nullable;
-                    lat_long: (float * float) nullable }
 
-type video_info = { time_taken: date nullable;
-                    duration: float nullable;
-                    lat_long: (float * float) nullable }
+type json <ocaml module="Yojson.Safe"> = abstract (* "Raw" JSON. *)
+
+type photo_info_variant = json wrap <ocaml module="Dropbox_json.Photo">
+type video_info_variant = json wrap <ocaml module="Dropbox_json.Video">
 
 type metadata = { size: string;
                   bytes: int;
                   ~mime_type: string;
                   path: string;
                   is_dir: bool;
-                  ~is_deleted: bool <ocaml default="false"> ;
-                  ~rev: string  <ocaml default="">;
+                  ~is_deleted <ocaml default="false"> : bool;
+                  ~rev <ocaml default="\"\"">: string;
                   ~hash: string;
                   thumb_exists: bool;
-                  ?photo_info: photo_info option;
-                  ?video_info: video_info option;
+                  ~photo_info <ocaml default="`None">: photo_info_variant;
+                  ~video_info <ocaml default="`None">: video_info_variant;
                   icon: string;
                   ?modified: date option;
                   ?client_mtime: date option;

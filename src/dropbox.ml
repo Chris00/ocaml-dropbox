@@ -157,11 +157,11 @@ module type S = sig
 
   val info : ?locale: string -> t -> info Lwt.t
 
-  type photo_info = Dropbox_t.photo_info
+  type photo_info = Dropbox_json.Photo.info
                   = { time_taken: Date.t option;
                       lat_long: (float * float) option }
 
-  type video_info = Dropbox_t.video_info
+  type video_info = Dropbox_json.Video.info
                   = { time_taken: Date.t option;
                       duration: float option;
                       lat_long: (float * float) option }
@@ -176,8 +176,8 @@ module type S = sig
       rev: string;
       hash: string;
       thumb_exists: bool;
-      photo_info: photo_info option;
-      video_info: video_info option;
+      photo_info: [ `None | `Pending | `Some of photo_info ];
+      video_info: [ `None | `Pending | `Some of video_info ];
       icon: string;
       modified: Date.t option;
       client_mtime: Date.t option;
@@ -294,6 +294,15 @@ module Make(Client: Cohttp_lwt.Client) = struct
   end
 
   include Dropbox_t
+
+  type photo_info = Dropbox_json.Photo.info
+                  = { time_taken: Date.t option;
+                      lat_long: (float * float) option }
+
+  type video_info = Dropbox_json.Video.info
+                  = { time_taken: Date.t option;
+                      duration: float option;
+                      lat_long: (float * float) option }
 
   type t = OAuth2.token
 

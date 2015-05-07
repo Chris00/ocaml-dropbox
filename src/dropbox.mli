@@ -211,14 +211,14 @@ module type S = sig
       documentation} for more information about supported locales.  *)
 
   type photo_info
-    = Dropbox_t.photo_info
+    = Dropbox_json.Photo.info
     = { time_taken: Date.t option;      (** The creation time of the photo *)
         lat_long: (float * float) option;
         (** The GPS coordinates of the photo, if any. *)
       }
 
   type video_info
-    = Dropbox_t.video_info
+    = Dropbox_json.Video.info
     = { time_taken: Date.t option;  (** The creation time of the video *)
         duration: float option;     (** The video length in ms *)
         lat_long: (float * float) option;
@@ -247,11 +247,11 @@ module type S = sig
       thumb_exists: bool;
       (** True if the file is an image that can be converted to a
           thumbnail via the {!thumbnails} call. *)
-      photo_info: photo_info option;
+      photo_info: [ `None | `Pending | `Some of photo_info ];
       (** Only returned when the include_media_info parameter is true and the
           file is an image. A dictionary that includes the creation time
           (time_taken) and the GPS coordinates (lat_long). *)
-      video_info: video_info option;
+      video_info: [ `None | `Pending | `Some of video_info ];
       (** Only returned when the include_media_info parameter is true and the
           file is a video. A dictionary that includes the creation time
           (time_taken), the GPS coordinates (lat_long), and the length of the
