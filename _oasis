@@ -101,6 +101,14 @@ Executable "search"
   Install:      false
   CompiledObject: best
 
+Executable "copy_ref"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       copy_ref.ml
+  BuildDepends: dropbox.lwt
+  Install:      false
+  CompiledObject: best
+
 
 Document API
   Title:           API reference for Dropbox

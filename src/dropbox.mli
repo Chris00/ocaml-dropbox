@@ -346,6 +346,15 @@ module type S = sig
             wait before calling {!longpoll_delta} again. *)
       }
 
+  type copy_ref
+    = Dropbox_t.copy_ref
+    = { copy_ref: string; (** A reference string to the specified file *)
+        expires: Date.t
+        (** The link's expiration date in Dropbox's usual date format. All
+            links are currently set to expire far enough in the future so
+            that expiration is effectively not an issue. *)
+      }
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
   (** [get_file t name] return the metadata for the file and a stream of
@@ -547,6 +556,12 @@ module type S = sig
       @param include_membership If [true], metadata for a shared
       folder will include a list of members and a list of groups.
       Default: [false]. *)
+
+  val copy_ref : t -> string -> copy_ref option Lwt.t
+  (** [copy_ref t name] return a [copy_ref] to the specified file.
+      A return value of [None] means that the file does not exist.
+      {!copy_ref} can be used to copy that file to another user's Dropbox
+      by passing it in as the [from_copy_ref] parameter on {!fileops/copy}. *)
   ;;
 end
 

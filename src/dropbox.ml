@@ -201,6 +201,11 @@ module type S = sig
     = { changes: bool;
         backoff: int option }
 
+  type copy_ref
+    = Dropbox_t.copy_ref
+    = { copy_ref: string;
+        expires: Date.t }
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
@@ -226,6 +231,8 @@ module type S = sig
   val search : t -> ?file_limit: int -> ?include_deleted: bool ->
                ?locale: string -> ?include_membership: bool ->
                ?fn: string -> string -> metadata list Lwt.t
+
+  val copy_ref : t -> string -> copy_ref option Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -513,4 +520,12 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_list_of_string body)
 
+  let copy_ref_of_response (_, body) =
+    Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Some(Json.copy_ref_of_string body))
+
+  let copy_ref t fn =
+    let u = Uri.of_string("https://api.dropbox.com/1/copy_ref/auto/" ^ fn) in
+    Client.get ~headers:(headers t) u
+    >>= check_errors_404 copy_ref_of_response
 end
