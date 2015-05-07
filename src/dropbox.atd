@@ -75,3 +75,6 @@ type latest_cursor = { cursor <ocaml name="latest_cursor">: string }
 
 type longpoll_delta = { changes: bool;
                         ?backoff : int option; }
+
+type copy_ref = { copy_ref: string;
+                  expires: date }
