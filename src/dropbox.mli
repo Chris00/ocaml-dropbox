@@ -558,10 +558,13 @@ module type S = sig
       Default: [false]. *)
 
   val copy_ref : t -> string -> copy_ref option Lwt.t
-  (** [copy_ref t name] return a [copy_ref] to the specified file.
-      A return value of [None] means that the file does not exist.
-      {!copy_ref} can be used to copy that file to another user's Dropbox
-      by passing it in as the [from_copy_ref] parameter on {!Fileops.copy}. *)
+  (** [copy_ref t fname] creates and return a [copy_ref] to the file
+      or directory [fname].  A return value of [None] means that
+      [fname] does not exist.  {!copy_ref} can be used to copy that
+      file to another user's Dropbox by passing it in as the
+      [from_copy_ref] parameter on {!Fileops.copy}.  All links are
+      currently set to expire far enough in the future so that
+      expiration is effectively not an issue. *)
 
 
   module Fileops : sig
