@@ -125,6 +125,14 @@ Executable "media"
   Install:      false
   CompiledObject: best
 
+Executable "shared_folders"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       shared_folders.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
 
 Document API
   Title:           API reference for Dropbox
