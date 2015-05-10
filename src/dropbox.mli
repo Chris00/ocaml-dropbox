@@ -355,6 +355,39 @@ module type S = sig
             that expiration is effectively not an issue. *)
       }
 
+  type link
+    = Dropbox_t.link
+    = { url: string; (** The link URL to the file *)
+        expires: Date.t (** The link's expiration date *)
+      }
+
+  type link_info
+    = Dropbox_json.Link.info
+    = { url: string; (** The link URL to the file or directory *)
+        expires: Date.t; (** The link's expiration date *)
+        visibility: string
+        (** Dropbox for Business users can set restrictions on shared links;
+            the visibility field indicates what (if any) restrictions are set
+            on this particular link. Possible values include: ["PUBLIC"]
+            (anyone can view), ["TEAM_ONLY"] (only the owner's team can view),
+            ["PASSWORD"] (a password is required), ["TEAM_AND_PASSWORD"]
+            (a combination of "TEAM_ONLY" and "PASSWORD" restrictions), or
+            "SHARED_FOLDER_ONLY" (only members of the enclosing shared folder
+            can view). Note that other values may be added at any time. *)
+      }
+
+  type shared_link = [
+    | `None
+    | `Public of link_info
+    | `Team_only of link_info
+    | `Team_and_password of link_info
+    | `Shared_folder_only of link_info
+    | `Unknown of link_info
+    ]
+  (** Depending on the value of visibility field in [link_info], it'll return
+      a variant whose name is the same as visibility field.
+      For example: [`Public] when visibility is set to "PUBLIC". *)
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
   (** [get_file t name] return the metadata for the file and a stream of
@@ -566,6 +599,33 @@ module type S = sig
       currently set to expire far enough in the future so that
       expiration is effectively not an issue. *)
 
+  val shares : t -> ?locale: string -> ?short_url: bool -> string ->
+               shared_link option Lwt.t
+  (** [shares t path] return a [shared_link] to a file or folder.
+      A return value of [None] means that the file does not exist.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text. See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      @param short_url When [true] (default), the URL returned will be
+      shortened using the Dropbox URL shortener. If [false], the URL will link
+      directly to the file's preview page. *)
+
+  val media : t -> ?locale: string -> string -> link option Lwt.t
+  (** [media t path] return a [link] directly to a file. A return value of
+      [None] means that the file does not exist.
+
+      Similar to {!shares}. The difference is that this bypasses the Dropbox
+      webserver, used to provide a preview of the file, so that you can
+      effectively stream the contents of your media. This URL should not be
+      used to display content directly in the browser.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text. See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales. *)
 
   module Fileops : sig
 

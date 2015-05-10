@@ -90,3 +90,51 @@ module Video = struct
            | None -> l in
          `Assoc l
   end
+
+module Link = struct
+  type info = {url : string;
+               expires: Date.t;
+               visibility: string}
+
+  type t = [
+    | `None
+    | `Public of info
+    | `Team_only of info
+    | `Team_and_password of info
+    | `Shared_folder_only of info
+    | `Unknown of info
+    ]
+
+  let set_info url expires visibility = function
+    | ("url", `String d) -> url := d
+    | ("expires", `String d) -> expires := (Date.of_string d)
+    | ("visibility", `String d) -> visibility := d
+    | _ -> ()
+
+  let wrap : Yojson.Safe.json -> t = function
+    | `Assoc l ->
+       let url = ref "" in
+       let expires = ref (Date.of_string "") in
+       let visibility = ref "" in
+       List.iter (set_info url expires visibility) l;
+       let dict = { url = !url;
+                    expires = !expires;
+                    visibility = !visibility } in
+       (match !visibility with 
+       | "PUBLIC" -> `Public dict
+       | "TEAM_ONLY" -> `Team_only dict
+       | "TEAM_AND_PASSWORD" -> `Team_and_password dict
+       | "SHARED_FOLDER_ONLY" -> `Shared_folder_only dict
+       | _ -> `Unknown dict )
+    | _ -> `None
+
+  let unwrap : t -> Yojson.Safe.json = function
+    | `None -> `Null
+    | `Public info | `Team_only info | `Team_and_password info
+    | `Shared_folder_only info ->
+       let l = [("visibility", `String info.visibility)] in
+       let l = ("expires", `String(Date.to_string info.expires)) :: l in
+       let l = ("url", `String (info.url)) :: l in
+       `Assoc l
+    | `Unknown info -> `Null
+end
