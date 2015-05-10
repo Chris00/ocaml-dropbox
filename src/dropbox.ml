@@ -166,6 +166,34 @@ module type S = sig
                       duration: float option;
                       lat_long: (float * float) option }
 
+  type user = Dropbox_t.user
+            = { uid: int;
+                display_name: string;
+                same_team: bool;
+                member_id: string }
+
+  type user_info = Dropbox_t.user_info
+                 = { user: user;
+                     access_type: string;
+                     active: bool }
+
+  type group = Dropbox_t.group
+             = { group_name: string;
+                 group_id: string;
+                 num_members: int }
+
+  type shared_folder = Dropbox_t.shared_folder
+                     = { shared_folder_id: string;
+                         shared_folder_name: string;
+                         path: string;
+                         access_type: string;
+                         shared_link_policy: string;
+                         owner: user option;
+                         membership: user_info list;
+                         groups: group list }
+
+  type shared_folders = shared_folder list
+
   type metadata = Dropbox_t.metadata = {
       size: string;
       bytes: int;
@@ -183,7 +211,10 @@ module type S = sig
       client_mtime: Date.t option;
       root: [ `Dropbox | `App_folder ];
       contents: metadata list;
-    }
+      shared_folder: shared_folder option;
+      read_only: bool;
+      parent_shared_folder_id: int;
+      modifier: user option }
 
   type cursor
 
@@ -258,6 +289,10 @@ module type S = sig
                string -> shared_link option Lwt.t
 
   val media : t -> ?locale: string -> string -> link option Lwt.t
+
+  val shared_folders : ?shared_folder_id: string -> ?include_membership: bool
+                      -> t -> [ `Singleton of shared_folder
+                              | `List of shared_folders ] Lwt.t
 
   module Fileops : sig
 
@@ -418,13 +453,14 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let metadata t ?(file_limit=10_000) ?(hash="") ?(list=true)
                ?(include_deleted=false) ?(rev="") ?(locale="")
-               ?(include_media_info=false) ?include_membership fn =
+               ?(include_media_info=false) ?(include_membership=true) fn =
     let u = Uri.of_string("https://api.dropbox.com/1/metadata/auto/" ^ fn) in
     let file_limit = if file_limit < 0 then 0 else file_limit in
     let q = [("list", [string_of_bool list]);
              ("file_limit", [string_of_int file_limit]);
              ("include_deleted", [string_of_bool include_deleted]);
              ("include_media_info", [string_of_bool include_media_info]);
+             ("include_membership", [string_of_bool include_membership])
             ] in
     let q = if hash <> "" then ("hash", [hash]) :: q else q in
     let q = if locale <> "" then ("locale", [locale]) :: q else q in
@@ -432,7 +468,6 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query u q in
     Client.get ~headers:(headers t) u
     >>= check_errors_404 metadata_of_response
-
 
   type cursor = { cursor: string;
                   path_prefix: string;
@@ -589,6 +624,18 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = if locale <> "" then Uri.with_query u [("local",[locale])] else u in
     Client.post ~headers:(headers t) u
     >>= check_errors_404 media_of_response
+
+  let shared_folders ?(shared_folder_id="") ?(include_membership=true) t =
+    let u = if shared_folder_id <> "" then
+              Uri.of_string("https://api.dropbox.com/1/shared_folders/"
+                            ^ shared_folder_id ^ "?include_membership=" ^
+                            (string_of_bool include_membership))
+            else Uri.of_string("https://api.dropbox.com/1/shared_folders/") in
+    Client.get ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> match shared_folder_id with
+    | "" -> return(`List (Json.shared_folders_of_string body))
+    | _ -> return(`Singleton (Json.shared_folder_of_string body))
 
   module Fileops = struct
 

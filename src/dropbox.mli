@@ -212,7 +212,7 @@ module type S = sig
 
   type photo_info
     = Dropbox_json.Photo.info
-    = { time_taken: Date.t option;      (** The creation time of the photo *)
+    = { time_taken: Date.t option;  (** The creation time of the photo *)
         lat_long: (float * float) option;
         (** The GPS coordinates of the photo, if any. *)
       }
@@ -224,6 +224,48 @@ module type S = sig
         lat_long: (float * float) option;
         (** The GPS coordinates of the video, if any. *)
       }
+
+  type user
+    = Dropbox_t.user
+    = { uid: int; (** The user's unique Dropbox ID *)
+        display_name: string; (** The name of the user *)
+        same_team: bool;
+        (** Whether the user is on the same team as the linked account *)
+        member_id: string
+        (** If this endpoint is called by a Dropbox for Business app and
+            the user is on that team, a member_id field will also be present *)
+      }
+
+  type user_info 
+    = Dropbox_t.user_info
+    = { user: user;
+        access_type: string;
+        active: bool
+        (** Whether the user is active in a shared folder *)
+      }
+
+  type group = Dropbox_t.group
+             = { group_name: string;
+                 group_id: string;
+                 num_members: int }
+
+  type shared_folder 
+    = Dropbox_t.shared_folder
+    = { shared_folder_id: string;
+        shared_folder_name: string;
+        path: string;
+        access_type: string;
+        shared_link_policy: string;
+        owner: user option;
+        membership: user_info list;
+        (** The membership field only contains users who have joined the
+            shared folder and does not include users who have been invited
+            but have not accepted. When the active field is [false], it means
+            that a user has left a shared folder (but may still rejoin). *)
+        groups: group list
+      }
+
+  type shared_folders = shared_folder list
 
   type metadata = Dropbox_t.metadata = {
       size: string;
@@ -276,6 +318,20 @@ module type S = sig
       contents: metadata list;
       (** For folders, contents is the list of the metadata of the files
           contained in this folder. Return nothing if the folder is empty. *)
+      shared_folder: shared_folder option;
+      (** This field will be included for shared folders.
+          See [shared_folder] for a sample shared folder response. *)
+      read_only: bool;
+      (** For shared folders, this field specifies whether the user has
+          read-only access to the folder. For files within a shared folder,
+          this specifies the read-only status of the parent shared folder. *)
+      parent_shared_folder_id: int;
+      (** For files within a shared folder, this field specifies the ID of
+          the containing shared folder. *)
+      modifier: user option
+      (** For files within a shared folder, this field specifies which user
+          last modified this file. If the modifying user no longer exists,
+          the value will be null.  *)
     }
 
   type cursor
@@ -416,7 +472,7 @@ module type S = sig
       yet, the string pending will be returned instead of a
       dictionary.
 
-      @param include_membership If true, metadata for a shared folder will
+      @param include_membership If [true], metadata for a shared folder will
       include a list of members and a list of groups.
 
       Possible errors:
@@ -631,6 +687,19 @@ module type S = sig
       and other language specific text. See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales. *)
+
+  val shared_folders : ?shared_folder_id: string -> ?include_membership: bool ->
+                      t -> [ `Singleton of shared_folder
+                           | `List of shared_folders ] Lwt.t
+  (** [shared_folder t] Return the metadata about a specific shared folder
+      or the list of all shared folders the authenticated user has access
+      to if [shared_folder_id] is not specified.
+
+      @param shared_folder The ID of a specific shared folder.
+
+      @param include_membership Required if [shared_folder_id] is specified.
+      If [true], include a list of members and a list of groups for the
+      shared folder. *)
 
   module Fileops : sig
 
