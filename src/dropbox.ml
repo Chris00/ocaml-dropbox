@@ -622,13 +622,17 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.post ~headers:(headers t) u
     >>= check_errors_404 media_of_response
 
+  let shared_folders_uri =
+    Uri.of_string "https://api.dropbox.com/1/shared_folders/"
+
   let shared_folders ?(shared_folder_id="") ?(include_membership=true) t =
     let u = if shared_folder_id <> "" then
               Uri.of_string("https://api.dropbox.com/1/shared_folders/"
-                            ^ shared_folder_id ^ "?include_membership=" ^
-                            (string_of_bool include_membership))
-            else Uri.of_string("https://api.dropbox.com/1/shared_folders/") in
-    Client.get ~headers:(headers t) u >>= check_errors
+                            ^ shared_folder_id)
+            else shared_folders_uri in
+    let q = ["include_membership", [string_of_bool include_membership]] in
+    Client.get ~headers:(headers t) (Uri.with_query u q)
+    >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> match shared_folder_id with
     | "" -> return(Json.shared_folders_of_string body)

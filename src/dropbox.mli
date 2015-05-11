@@ -686,18 +686,17 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales. *)
 
-  val shared_folders : ?shared_folder_id: string -> ?include_membership: bool ->
-                      t -> [ `Singleton of shared_folder
-                           | `List of shared_folders ] Lwt.t
+  val shared_folders :
+    ?shared_folder_id: string -> ?include_membership: bool ->
+    t -> shared_folder list Lwt.t
   (** [shared_folder t] Return the metadata about a specific shared folder
       or the list of all shared folders the authenticated user has access
       to if [shared_folder_id] is not specified.
 
       @param shared_folder The ID of a specific shared folder.
 
-      @param include_membership Required if [shared_folder_id] is specified.
-      If [true], include a list of members and a list of groups for the
-      shared folder. *)
+      @param include_membership If [true] (the default), include a
+      list of members and a list of groups for the shared folder. *)
 
   module Fileops : sig
 

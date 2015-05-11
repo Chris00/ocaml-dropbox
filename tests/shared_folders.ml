@@ -6,14 +6,11 @@ module D = Dropbox_lwt_unix
     shared folder. *)
 
 let shared_folders t shared_folder_id =
-  let get_meta =
-    if shared_folder_id <> "" then D.shared_folders ~shared_folder_id t
-    else D.shared_folders t in
-  get_meta >>= fun shared_folder -> match shared_folder with
-    | `Singleton shared_folder -> Lwt_io.printlf "%s"
-      (Dropbox_j.string_of_shared_folder shared_folder)
-    | `List shared_folder -> Lwt_io.printlf "%s"
-      (Dropbox_j.string_of_shared_folders shared_folder)
+  D.shared_folders ~shared_folder_id t >>= fun shared_folders ->
+  Lwt_list.iter_s
+    (fun shared_folder ->
+     Lwt_io.printlf "%s" (Dropbox_j.string_of_shared_folder shared_folder))
+    shared_folders
 
 let main t args =
   match args with
