@@ -211,20 +211,20 @@ module type S = sig
     = { url: string;
         expires: Date.t }
 
-  type link_info
-    = Dropbox_json.Link.info
+  type visibility = [
+    | `Public
+    | `Team_only
+    | `Password
+    | `Team_and_password
+    | `Shared_folder_only
+    | `Other of string
+    ]
+
+  type shared_link
+    = Dropbox_t.shared_link
     = { url: string;
         expires: Date.t;
-        visibility: string }
-
-  type shared_link = [
-    | `None
-    | `Public of link_info
-    | `Team_only of link_info
-    | `Team_and_password of link_info
-    | `Shared_folder_only of link_info
-    | `Unknown of link_info
-    ]
+        visibility: visibility }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
@@ -340,11 +340,6 @@ module Make(Client: Cohttp_lwt.Client) = struct
                   = { time_taken: Date.t option;
                       duration: float option;
                       lat_long: (float * float) option }
-
-  type link_info = Dropbox_json.Link.info
-                 = { url: string;
-                     expires: Date.t;
-                     visibility: string }
 
   type t = OAuth2.token
 

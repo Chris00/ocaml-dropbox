@@ -82,4 +82,8 @@ type copy_ref = { copy_ref: string;
 type link = { url: string;
               expires: date }
 
-type shared_link = json wrap <ocaml module="Dropbox_json.Link">
+type visibility = json wrap <ocaml module="Dropbox_json.Visibility">
+
+type shared_link = { url: string;
+                     expires: date;
+                     visibility: visibility }
