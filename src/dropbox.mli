@@ -236,7 +236,7 @@ module type S = sig
             the user is on that team, a member_id field will also be present *)
       }
 
-  type user_info 
+  type user_info
     = Dropbox_t.user_info
     = { user: user;
         access_type: string;
@@ -249,7 +249,7 @@ module type S = sig
                  group_id: string;
                  num_members: int }
 
-  type shared_folder 
+  type shared_folder
     = Dropbox_t.shared_folder
     = { shared_folder_id: string;
         shared_folder_name: string;
@@ -264,8 +264,6 @@ module type S = sig
             that a user has left a shared folder (but may still rejoin). *)
         groups: group list
       }
-
-  type shared_folders = shared_folder list
 
   type metadata = Dropbox_t.metadata = {
       size: string;

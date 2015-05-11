@@ -192,8 +192,6 @@ module type S = sig
                          membership: user_info list;
                          groups: group list }
 
-  type shared_folders = shared_folder list
-
   type metadata = Dropbox_t.metadata = {
       size: string;
       bytes: int;
@@ -291,8 +289,7 @@ module type S = sig
   val media : t -> ?locale: string -> string -> link option Lwt.t
 
   val shared_folders : ?shared_folder_id: string -> ?include_membership: bool
-                      -> t -> [ `Singleton of shared_folder
-                              | `List of shared_folders ] Lwt.t
+                      -> t -> shared_folder list Lwt.t
 
   module Fileops : sig
 
@@ -634,8 +631,8 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.get ~headers:(headers t) u >>= check_errors
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> match shared_folder_id with
-    | "" -> return(`List (Json.shared_folders_of_string body))
-    | _ -> return(`Singleton (Json.shared_folder_of_string body))
+    | "" -> return(Json.shared_folders_of_string body)
+    | _ -> return [Json.shared_folder_of_string body]
 
   module Fileops = struct
 
