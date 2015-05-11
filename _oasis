@@ -109,6 +109,22 @@ Executable "copy_ref"
   Install:      false
   CompiledObject: best
 
+Executable "shares"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       shares.ml
+  BuildDepends: dropbox.lwt
+  Install:      false
+  CompiledObject: best
+
+Executable "media"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       media.ml
+  BuildDepends: dropbox.lwt
+  Install:      false
+  CompiledObject: best
+
 
 Document API
   Title:           API reference for Dropbox

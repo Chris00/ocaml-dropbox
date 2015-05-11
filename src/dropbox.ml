@@ -206,6 +206,26 @@ module type S = sig
     = { copy_ref: string;
         expires: Date.t }
 
+  type link
+    = Dropbox_t.link
+    = { url: string;
+        expires: Date.t }
+
+  type visibility = [
+    | `Public
+    | `Team_only
+    | `Password
+    | `Team_and_password
+    | `Shared_folder_only
+    | `Other of string
+    ]
+
+  type shared_link
+    = Dropbox_t.shared_link
+    = { url: string;
+        expires: Date.t;
+        visibility: visibility }
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
@@ -234,6 +254,10 @@ module type S = sig
 
   val copy_ref : t -> string -> copy_ref option Lwt.t
 
+  val shares : t -> ?locale: string -> ?short_url: bool ->
+               string -> shared_link option Lwt.t
+
+  val media : t -> ?locale: string -> string -> link option Lwt.t
 
   module Fileops : sig
 
@@ -544,6 +568,27 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.get ~headers:(headers t) u
     >>= check_errors_404 copy_ref_of_response
 
+  let shares_of_response (_, body) =
+    Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Some(Json.shared_link_of_string body))
+
+  let shares t ?(locale="") ?(short_url=true) fn =
+    let u = Uri.of_string("https://api.dropbox.com/1/shares/auto/" ^ fn) in
+    let q = [("short_url",[string_of_bool short_url])] in
+    let q = if locale <> "" then ("locale",[locale]) :: q else q in
+    let u = Uri.with_query u q in
+    Client.post ~headers:(headers t) u
+    >>= check_errors_404 shares_of_response
+
+  let media_of_response (_, body) =
+    Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Some(Json.link_of_string body))
+
+  let media t ?(locale="") fn =
+    let u = Uri.of_string("https://api.dropbox.com/1/media/auto/" ^ fn) in
+    let u = if locale <> "" then Uri.with_query u [("local",[locale])] else u in
+    Client.post ~headers:(headers t) u
+    >>= check_errors_404 media_of_response
 
   module Fileops = struct
 

@@ -78,3 +78,12 @@ type longpoll_delta = { changes: bool;
 
 type copy_ref = { copy_ref: string;
                   expires: date }
+
+type link = { url: string;
+              expires: date }
+
+type visibility = json wrap <ocaml module="Dropbox_json.Visibility">
+
+type shared_link = { url: string;
+                     expires: date;
+                     visibility: visibility }

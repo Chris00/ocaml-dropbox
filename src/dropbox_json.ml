@@ -90,3 +90,31 @@ module Video = struct
            | None -> l in
          `Assoc l
   end
+
+module Visibility = struct
+  type t = [
+    | `Public
+    | `Team_only
+    | `Password
+    | `Team_and_password
+    | `Shared_folder_only
+    | `Other of string
+    ]
+
+  let wrap : Yojson.Safe.json -> t = function
+    | `String "PUBLIC" -> `Public
+    | `String "TEAM_ONLY" -> `Team_only
+    | `String "PASSWORD" -> `Password
+    | `String "TEAM_AND_PASSWORD" -> `Team_and_password
+    | `String "SHARED_FOLDER_ONLY" -> `Shared_folder_only
+    | `String s -> `Other s
+    | _ -> Yojson.json_error "Visibility of shared link is not a string"
+
+  let unwrap : t -> Yojson.Safe.json = function
+    | `Public -> `String "PUBLIC"
+    | `Team_only -> `String "TEAM_ONLY"
+    | `Password -> `String "PASSWORD"
+    | `Team_and_password -> `String "TEAM_AND_PASSWORD"
+    | `Shared_folder_only -> `String "SHARED_FOLDER_ONLY"
+    | `Other s -> `String s
+end
