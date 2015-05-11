@@ -133,6 +133,46 @@ Executable "shared_folders"
   Install:      false
   CompiledObject: best
 
+Executable "copy_from_path"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       copy_from_path.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
+Executable "copy_from_ref"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       copy_from_ref.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
+Executable "delete"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       delete.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
+Executable "create_folder"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       create_folder.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
+Executable "move"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       move.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
 
 Document API
   Title:           API reference for Dropbox
