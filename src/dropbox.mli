@@ -623,6 +623,10 @@ module type S = sig
       effectively stream the contents of your media. This URL should not be
       used to display content directly in the browser.
 
+      Note that the {!media} link expires after four hours, allotting
+      enough time to stream files, but not enough to leave a
+      connection open indefinitely.
+
       @param locale Specify language settings for user error messages
       and other language specific text. See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
