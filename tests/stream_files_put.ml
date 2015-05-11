@@ -11,8 +11,7 @@ let upload t fn =
     | 1024 -> return(Some (Bytes.to_string buffer ))
     | 0 -> return(None)
     | a -> return(Some (Bytes.to_string (Bytes.sub buffer 0 a))) in
-  let stream =Lwt_stream.from read in
-  D.stream_files_put t fn size stream
+  D.files_put t fn (`Stream (Lwt_stream.from read))
   >>= fun meta -> Lwt_unix.close fd
   >>= fun () -> Lwt_io.printlf "Send: %s\nMetadata: \n%s"
                 fn (Dropbox_j.string_of_metadata meta)

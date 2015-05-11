@@ -302,14 +302,11 @@ module type S = sig
   val shared_folders : ?shared_folder_id: string -> ?include_membership: bool
                       -> t -> shared_folder list Lwt.t
 
-  val stream_files_put : t -> ?locale: string -> ?overwrite: bool ->
-                         ?parent_rev: string -> ?autorename: bool -> string ->
-                         int -> string Lwt_stream.t -> metadata Lwt.t
-
-  val cohttp_body_files_put : t -> ?locale: string -> ?overwrite: bool ->
-                              ?parent_rev: string -> ?autorename: bool ->
-                              string -> int -> Cohttp_lwt_body.t ->
-                              metadata Lwt.t
+  val files_put : t -> ?locale: string -> ?overwrite: bool ->
+                  ?parent_rev: string -> ?autorename: bool -> string ->
+                  [ `String of string
+                  | `Strings of string list
+                  | `Stream of string Lwt_stream.t ] -> metadata Lwt.t
 
   val chunked_upload : t -> ?upload_id: string -> ?offset: int ->
                        Cohttp_lwt_body.t -> chunked_upload Lwt.t
@@ -666,8 +663,8 @@ module Make(Client: Cohttp_lwt.Client) = struct
     | _ -> return [Json.shared_folder_of_string body]
 
 
-  let stream_files_put t ?(locale="") ?(overwrite=true) ?(parent_rev="")
-                       ?(autorename=true) fn len stream =
+  let files_put t ?(locale="") ?(overwrite=true) ?(parent_rev="")
+                ?(autorename=true) fn content =
     let headers = headers t in
     (* let headers = Cohttp.Header.add (headers t)
       "Content-Length" (string_of_int len) in *)
@@ -677,24 +674,10 @@ module Make(Client: Cohttp_lwt.Client) = struct
              ("autorename", [string_of_bool autorename])] in
     let q = if locale <> "" then ("locale", [locale]) :: q else q in
     let q = if parent_rev <> "" then ("parent_rev",[parent_rev]) :: q else q in
-    let u = Uri.with_query u q in
-    Client.put ~headers ~body:(Cohttp_lwt_body.of_stream stream) u
-    >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.metadata_of_string body)
-
-  let cohttp_body_files_put t ?(locale="") ?(overwrite=true) ?(parent_rev="")
-                            ?(autorename=true) fn len stream =
-    let headers = headers t in
-    (* let headers = Cohttp.Header.add (headers t)
-      "Content-Length" (string_of_int len) in *)
-    let u =
-      Uri.of_string("https://api-content.dropbox.com/1/files_put/auto/" ^ fn) in
-    let q = [("overwrite", [string_of_bool overwrite]);
-             ("autorename", [string_of_bool autorename])] in
-    let q = if locale <> "" then ("locale", [locale]) :: q else q in
-    let q = if parent_rev <> "" then ("parent_rev",[parent_rev]) :: q else q in
-    let u = Uri.with_query u q in
-    Client.put ~headers ~body:stream u
+    let body = match content with
+      | (`String _ | `Strings _) as b -> b
+      | `Stream stream -> Cohttp_lwt_body.of_stream stream in
+    Client.put ~headers ~body (Uri.with_query u q)
     >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
 

@@ -707,34 +707,37 @@ module type S = sig
       @param include_membership If [true] (the default), include a
       list of members and a list of groups for the shared folder. *)
 
-  val stream_files_put : t -> ?locale: string -> ?overwrite: bool ->
-                         ?parent_rev: string -> ?autorename: bool -> string ->
-                         int -> string Lwt_stream.t -> metadata Lwt.t
-  (** [stream_files_put t name size stream] Return the metadata for the
-      uploaded file.
+  val files_put : t -> ?locale: string -> ?overwrite: bool ->
+                  ?parent_rev: string -> ?autorename: bool -> string ->
+                  [ `String of string
+                  | `Strings of string list
+                  | `Stream of string Lwt_stream.t ] -> metadata Lwt.t
+  (** [files_put t path content] upload the [content] under the [path]
+      and return the metadata of the uploaded file.
 
       @param locale The metadata returned on successful upload will have
       its size field translated based on the given locale.
 
-      @param overwrite This value, either [true] (default) or [false],
-      determines whether an existing file will be overwritten by this upload.
-      If [true], any existing file will be overwritten. If [false], the other
-      parameters determine whether a conflict occurs and how that conflict is
-      resolved.
+      @param overwrite This value determines whether an existing file
+      will be overwritten by this upload.  If [true] (the default),
+      any existing file will be overwritten. If [false], the other
+      parameters determine whether a conflict occurs and how that
+      conflict is resolved.
 
-      @param parent_rev If present, this parameter specifies the revision of
-      the file you're editing. If parent_rev matches the latest version of the
-      file on the user's Dropbox, that file will be replaced. Otherwise, a
-      [Conflict] will occur. If you specify a parent_rev and that
-      revision doesn't exist, the file won't save [Invalid_arg]. You can get
-      the most recent rev by performing a call to {!metadata}.
+      @param parent_rev If present, this parameter specifies the
+      revision of the file you're editing. If parent_rev matches the
+      latest version of the file on the user's Dropbox, that file will
+      be replaced. Otherwise, a [Conflict] will occur. If you specify
+      a parent_rev and that revision doesn't exist, the file won't
+      save (this function will fail with [Invalid_arg]).  You can get the
+      most recent revision by performing a call to {!metadata}.
 
-      @param autorename This value, either [true] (default) or [false],
-      determines what happens when there is a conflict. If [true], the file
-      being uploaded will be automatically renamed to avoid the conflict.
-      (For example, test.txt might be automatically renamed to test (1).txt.)
-      The new name can be obtained from the returned metadata. If [false],
-      the call will fail with a Conflict response code.
+      @param autorename This value determines what happens when there
+      is a conflict.  If [true] (the default), the file being uploaded
+      will be automatically renamed to avoid the conflict.  (For
+      example, test.txt might be automatically renamed to test
+      (1).txt.)  The new name can be obtained from the returned
+      metadata.  If [false], the call will fail with a [Conflict] error.
 
       Possible errors:
       Conflict The call failed because a conflict occurred. This means a file
@@ -743,12 +746,6 @@ module type S = sig
 
       Invalid_arg Returned if the request does not contain an [upload_id] or
       if there is no chunked upload matching the given [upload_id]. *)
-
-  val cohttp_body_files_put : t -> ?locale: string -> ?overwrite: bool ->
-                              ?parent_rev: string -> ?autorename: bool ->
-                              string -> int -> Cohttp_lwt_body.t ->
-                              metadata Lwt.t
-  (** Idem stream_files_put *)
 
   val chunked_upload : t -> ?upload_id: string -> ?offset: int ->
                        Cohttp_lwt_body.t -> chunked_upload Lwt.t
