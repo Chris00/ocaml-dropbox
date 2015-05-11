@@ -699,8 +699,103 @@ module type S = sig
       list of members and a list of groups for the shared folder. *)
 
   module Fileops : sig
+    type root_fileops = [ `Auto | `Dropbox | `Sandbox ]
 
+    val copy : t -> ?locale: string -> ?from_copy_ref: string ->
+               ?from_path: string -> ?root: root_fileops -> string ->
+               metadata option Lwt.t
+  (** [copy t from_path to_path root] Return the metadata for the copy of
+      the file or folder.
 
+      @param root The root relative to which [from_path] and [to_path] are
+      specified. Valid values are `Auto (default), `Sandbox, and `Dropbox.
+
+      @param from_path Specifies the file or folder to be copied from
+      relative to root.
+
+      @param to_path Specifies the destination path, including the new name
+      for the file or folder, relative to root.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      @param from_copy_ref Specifies a [copy_ref] generated from a previous
+      {!copy_ref} call. Must be used instead of the from_path parameter.
+
+      Possible errors:
+      Invalid_oauth An invalid copy operation was attempted (e.g. there is
+      already a file at the given destination, or trying to copy a shared
+      folder).
+
+      Not_acceptable Too many files would be involved in the operation for
+      it to complete successfully. The limit is currently 10,000 files and
+      folders. *)
+
+    val create_folder : t -> ?locale: string -> ?root: root_fileops
+                        -> string -> metadata option Lwt.t
+  (** [create_folder path root] return the metadata for the new folder.
+
+      @param root The root relative to which path is specified. Valid values
+      are `Auto (default), `Sandbox, and `Dropbox.
+
+      @param path The path to the new folder to create relative to root.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      Possible error:
+      Invalid_oauth There is already a folder at the given destination. *)
+
+    val delete : t -> ?locale: string -> ?root: root_fileops -> string ->
+                 metadata option Lwt.t
+  (** [delete path root] Return the metadata for the deleted file or folder.
+
+      @param root The root relative to which path is specified. Valid values
+      are `Auto (default), `Sandbox, and `Dropbox.
+
+      @param path The path to the file or folder to be deleted.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      Possible errors:
+      Not_acceptable Too many files would be involved in the operation for
+      it to complete successfully. The limit is currently 10,000 files and
+      folders. *)
+
+    val move : t -> ?locale: string -> ?root: root_fileops -> string
+               -> string -> metadata option Lwt.t
+  (** [move from_path to_path root] Return the metadata for the moved file or
+      folder.
+
+      @param root The root relative to which from_path and to_path are
+      specified. Valid values are `Auto (default), `Sandbox, and `Dropbox.
+
+      @param from_path Specifies the file or folder to be moved from relative
+      to root.
+
+      @param to_path Specifies the destination path, including the new name
+      for the file or folder, relative to root.
+
+      @param locale Specify language settings for user error messages
+      and other language specific text.  See
+      {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
+      documentation} for more information about supported locales.
+
+      Possible errors:
+      Invalid_oauth An invalid move operation was attempted (e.g. there
+      is already a file at the given destination, or moving a shared folder
+      into a shared folder).
+
+      Not_acceptable Too many files would be involved in the operation for
+      it to complete successfully. The limit is currently 10,000 files and
+      folders.*)
   end
 end
 
