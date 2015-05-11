@@ -115,3 +115,7 @@ type visibility = json wrap <ocaml module="Dropbox_json.Visibility">
 type shared_link = { url: string;
                      expires: date;
                      visibility: visibility }
+
+type chunked_upload = { upload_id: string;
+                        offset: int;
+                        expires: date }

@@ -255,6 +255,12 @@ module type S = sig
         expires: Date.t;
         visibility: visibility }
 
+  type chunked_upload
+    = Dropbox_t.chunked_upload
+    = { upload_id: string;
+        offset: int;
+        expires: Date.t }
+
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
 
@@ -288,8 +294,25 @@ module type S = sig
 
   val media : t -> ?locale: string -> string -> link option Lwt.t
 
+
   val shared_folders : ?shared_folder_id: string -> ?include_membership: bool
                       -> t -> shared_folder list Lwt.t
+
+  val stream_files_put : t -> ?locale: string -> ?overwrite: bool ->
+                         ?parent_rev: string -> ?autorename: bool -> string ->
+                         int -> string Lwt_stream.t -> metadata Lwt.t
+
+  val cohttp_body_files_put : t -> ?locale: string -> ?overwrite: bool ->
+                              ?parent_rev: string -> ?autorename: bool ->
+                              string -> int -> Cohttp_lwt_body.t ->
+                              metadata Lwt.t
+
+  val chunked_upload : t -> ?upload_id: string -> ?offset: int ->
+                       Cohttp_lwt_body.t -> chunked_upload Lwt.t
+
+  val commit_chunked_upload : t -> ?locale: string -> ?overwrite: bool ->
+                              ?parent_rev: string -> ?autorename: bool ->
+                              string -> string -> metadata Lwt.t
 
   module Fileops : sig
 
@@ -637,6 +660,64 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= fun body -> match shared_folder_id with
     | "" -> return(Json.shared_folders_of_string body)
     | _ -> return [Json.shared_folder_of_string body]
+
+
+  let stream_files_put t ?(locale="") ?(overwrite=true) ?(parent_rev="")
+                       ?(autorename=true) fn len stream =
+    let headers = headers t in
+    (* let headers = Cohttp.Header.add (headers t)
+      "Content-Length" (string_of_int len) in *)
+    let u =
+      Uri.of_string("https://api-content.dropbox.com/1/files_put/auto/" ^ fn) in
+    let q = [("overwrite", [string_of_bool overwrite]);
+             ("autorename", [string_of_bool autorename])] in
+    let q = if locale <> "" then ("locale", [locale]) :: q else q in
+    let q = if parent_rev <> "" then ("parent_rev",[parent_rev]) :: q else q in
+    let u = Uri.with_query u q in
+    Client.put ~headers ~body:(Cohttp_lwt_body.of_stream stream) u
+    >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.metadata_of_string body)
+
+  let cohttp_body_files_put t ?(locale="") ?(overwrite=true) ?(parent_rev="")
+                            ?(autorename=true) fn len stream =
+    let headers = headers t in
+    (* let headers = Cohttp.Header.add (headers t)
+      "Content-Length" (string_of_int len) in *)
+    let u =
+      Uri.of_string("https://api-content.dropbox.com/1/files_put/auto/" ^ fn) in
+    let q = [("overwrite", [string_of_bool overwrite]);
+             ("autorename", [string_of_bool autorename])] in
+    let q = if locale <> "" then ("locale", [locale]) :: q else q in
+    let q = if parent_rev <> "" then ("parent_rev",[parent_rev]) :: q else q in
+    let u = Uri.with_query u q in
+    Client.put ~headers ~body:stream u
+    >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.metadata_of_string body)
+
+  let chunked_upload t ?(upload_id="") ?(offset=0) chunked_data =
+    let u = Uri.of_string("https://api-content.dropbox.com/1/chunked_upload") in
+    let q = if upload_id <> "" then [("upload_id",[upload_id])] else [] in
+    let q = if offset != 0 then ("offset",[string_of_int offset]) :: q else q in
+    let u = Uri.with_query u q in
+    Client.put ~body:chunked_data ~chunked:true ~headers:(headers t) u
+    >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.chunked_upload_of_string body)
+
+
+  let commit_chunked_upload t ?(locale="") ?(overwrite=true) ?(parent_rev="")
+                            ?(autorename=true) upload_id fn =
+    let u = Uri.of_string("https://api-content.dropbox.com/1\
+                           /commit_chunked_upload/auto/" ^ fn) in
+    let q = [("overwrite",[string_of_bool overwrite]);
+             ("autorename",[string_of_bool autorename]);
+             ("upload_id",[upload_id])] in
+    let q = if locale <> "" then ("locale", [locale]) :: q else q in
+    let q = if parent_rev <> "" then ("parent_rev",[parent_rev]) :: q else q in
+    let u = Uri.with_query u q in
+    Client.post ~headers:(headers t) u >>= check_errors
+    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun body -> return(Json.metadata_of_string body)
+
 
   module Fileops = struct
 
