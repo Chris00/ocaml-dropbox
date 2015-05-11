@@ -16,6 +16,7 @@ type error =
   | Invalid_arg of error_description
   | Invalid_token of error_description
   | Invalid_oauth of error_description
+  | Conflict of error_description
   | Too_many_requests of error_description
   | Try_later of int option * error_description
   | Quota_exceeded of error_description
@@ -31,6 +32,8 @@ let string_of_error = function
      "Invalid_token " ^ Json.string_of_error_description e
   | Invalid_oauth e ->
      "Invalid_oauth " ^ Json.string_of_error_description e
+  | Conflict e ->
+     "Conflict " ^ Json.string_of_error_description e
   | Too_many_requests e ->
      "Too_many_requests " ^ Json.string_of_error_description e
   | Try_later (sec, e) ->
@@ -64,6 +67,7 @@ let check_errors_k k ((rq, body) as r) =
   | `Bad_request -> fail_error body (fun e -> Invalid_arg e)
   | `Unauthorized -> fail_error body (fun e -> Invalid_token e)
   | `Forbidden -> fail_error body (fun e -> Invalid_oauth e)
+  | `Conflict -> fail_error body (fun e -> Conflict e)
   | `Too_many_requests -> fail_error body (fun e -> Too_many_requests e)
   | `Service_unavailable ->
      (match Cohttp.(Header.get rq.Response.headers "retry-after") with

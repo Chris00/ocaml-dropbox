@@ -15,6 +15,8 @@ type error =
   (** Bad OAuth request (wrong consumer key, bad nonce, expired
       timestamp...). Unfortunately, re-authenticating the user won't
       help here. *)
+  | Conflict of error_description
+  (** A conflict occured when uploading a file.  See {!files_put}. *)
   | Too_many_requests of error_description
   (** Your app is making too many requests and is being rate limited.
       [Too_many_requests] can trigger on a per-app or per-user
