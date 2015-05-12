@@ -690,6 +690,9 @@ module Make(Client: Cohttp_lwt.Client) = struct
          let len = List.fold_left (fun l s -> l + String.length s) 0 l in
          add_content_length headers len, b
       | `Stream stream ->
+         (* Although Content-Length is required, Dropbox seems to do
+            fine without (except to verify that all bytes have been
+            transmitted of course). *)
          headers, Cohttp_lwt_body.of_stream stream
       | `Stream_len (stream, len) ->
          (add_content_length headers len,

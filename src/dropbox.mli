@@ -702,14 +702,16 @@ module type S = sig
 
   val files_put :
     t -> ?locale: string -> ?overwrite: bool ->
-    ?parent_rev: string -> ?autorename: bool -> string ->
+    ?parent_rev: string -> ?autorename: bool ->
+    string ->
     [ `String of string
     | `Strings of string list
     | `Stream of string Lwt_stream.t
     | `Stream_len of string Lwt_stream.t * int] -> metadata Lwt.t
   (** [files_put t path content] upload the [content] under the [path]
       (the full path is created by Dropbox if necessary) and return
-      the metadata of the uploaded file.
+      the metadata of the uploaded file.  The [path] should not point
+      to a folder.
 
       @param locale The metadata returned on successful upload will have
       its size field translated based on the given locale.
@@ -737,12 +739,13 @@ module type S = sig
       error.
 
       Possible errors:
-      Conflict The call failed because a conflict occurred. This means a file
-      already existed at the specified path, [overwrite] was [false], and the
-      [parent_rev] (if specified) didn't match the current rev.
+      Fail with [Conflict] if a conflict occurred.  This means a file
+      already existed at the specified path, [overwrite] was [false],
+      and the [parent_rev] (if specified) didn't match the current rev.
 
-      Invalid_arg Returned if the request does not contain an [upload_id] or
-      if there is no chunked upload matching the given [upload_id]. *)
+      Fail with [Invalid_arg] Returned if the request does not contain
+      an [upload_id] or if there is no chunked upload matching the
+      given [upload_id]. *)
 
   type chunked_upload_id = private string
 
