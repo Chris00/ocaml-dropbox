@@ -23,6 +23,7 @@ type error =
   | Server_error of int * error_description
   | Not_modified of error_description
   | Not_acceptable of error_description
+  | Unsupported_media_type of error_description
 
 (* FIXME: Do we want to render the values as strings closer to OCaml? *)
 let string_of_error = function
@@ -49,6 +50,8 @@ let string_of_error = function
      "Not_modified " ^ Json.string_of_error_description e
   | Not_acceptable e ->
      "Not_acceptable " ^ Json.string_of_error_description e
+  | Unsupported_media_type e ->
+     "Unsupported_media_type " ^ Json.string_of_error_description e
 
 exception Error of error
 
@@ -82,6 +85,8 @@ let check_errors_k k ((rq, body) as r) =
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
   | `Not_modified -> fail_error body (fun e -> Not_modified e)
   | `Not_acceptable -> fail_error body (fun e -> Not_acceptable e)
+  | `Unsupported_media_type -> fail_error body
+                               (fun e -> Unsupported_media_type e)
   | _ -> k r
 
 let check_errors =
@@ -320,6 +325,10 @@ module type S = sig
   val commit_chunked_upload : t -> ?locale: string -> ?overwrite: bool ->
                               ?parent_rev: string -> ?autorename: bool ->
                               chunked_upload_id -> string -> metadata Lwt.t
+
+  val thumbnails : t -> ?format: [ `Jpeg | `Png  | `Bmp ]
+                   -> ?size: [ `Xs | `S | `M | `L | `Xl ] -> string ->
+                   (metadata * string Lwt_stream.t) option Lwt.t
 
   module Fileops : sig
 
@@ -729,6 +738,23 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
 
+  let thumbnails t ?(format=`Jpeg) ?(size=`S) fn =
+    let headers = headers t in
+    let u = Uri.of_string
+      ("https://api-content.dropbox.com/1/thumbnails/auto/" ^ fn) in
+    let q = match size with
+      | `Xs -> [("size",["xs"])]
+      | `S -> [("size",["s"])]
+      | `M -> [("size",["m"])]
+      | `L -> [("size",["l"])]
+      | `Xl -> [("size",["xl"])] in
+    let q = match format with
+      | `Jpeg -> ("format",["jpeg"]) :: q
+      | `Png -> ("format",["png"]) :: q
+      | `Bmp -> ("format",["bmp"]) :: q in
+    let u = Uri.with_query u q in
+    Client.get ~headers u
+    >>= check_errors_404 stream_of_file
 
   module Fileops = struct
 

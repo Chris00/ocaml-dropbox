@@ -34,6 +34,8 @@ type error =
   (** The folder contents have not changed (relies on hash parameter). *)
   | Not_acceptable of error_description
   (** There are too many file entries to return. *)
+  | Unsupported_media_type of error_description
+  (**  The image is invalid and cannot be converted to a thumbnail. *)
 
 val string_of_error : error -> string
 
@@ -818,6 +820,24 @@ module type S = sig
       Fail with [Invalid_arg] if there is no chunked upload matching
       the given [upload_id]. *)
 
+
+  val thumbnails : t -> ?format: [ `Jpeg | `Png | `Bmp ]
+                   -> ?size: [ `Xs | `S | `M | `L | `Xl ] -> string ->
+                   (metadata * string Lwt_stream.t) option Lwt.t
+  (** [thumbnails t path] return the metadata for the thumbnails and a
+      stream of its content. [None] indicates that the file does not exists.
+
+      Note that This method currently supports files with the following file
+      extensions: .jpg, .jpeg, .png, .tiff, .tif, .gif, .bmp (it also work on
+      .avi, .mp4, .flv). And photos larger than 20MB in size won't be
+      converted to a thumbnail.
+
+      @param format [`Jpeg] (default) or [`Png]. For images that are photos,
+      [`Jpeg] should be preferred, while [`Png] is better for screenshots
+      and digital art. Support also [`Bmp].
+
+      @param size One of the following values (default: [`S]): [`Xs] (32x32),
+      [`S] (64x64), [`M] (128x128), [`L] (640x480), [`Xl] (1024x768). *)
 
   module Fileops : sig
 

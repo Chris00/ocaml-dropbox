@@ -157,6 +157,14 @@ Executable "chunked_upload"
   Install:      false
   CompiledObject: best
 
+Executable "thumbnails"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       thumbnails.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
 
 Document API
   Title:           API reference for Dropbox
