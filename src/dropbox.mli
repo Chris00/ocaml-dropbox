@@ -700,13 +700,16 @@ module type S = sig
       @param include_membership If [true] (the default), include a
       list of members and a list of groups for the shared folder. *)
 
-  val files_put : t -> ?locale: string -> ?overwrite: bool ->
-                  ?parent_rev: string -> ?autorename: bool -> string ->
-                  [ `String of string
-                  | `Strings of string list
-                  | `Stream of string Lwt_stream.t ] -> metadata Lwt.t
+  val files_put :
+    t -> ?locale: string -> ?overwrite: bool ->
+    ?parent_rev: string -> ?autorename: bool -> string ->
+    [ `String of string
+    | `Strings of string list
+    | `Stream of string Lwt_stream.t
+    | `Stream_len of string Lwt_stream.t * int] -> metadata Lwt.t
   (** [files_put t path content] upload the [content] under the [path]
-      and return the metadata of the uploaded file.
+      (the full path is created by Dropbox if necessary) and return
+      the metadata of the uploaded file.
 
       @param locale The metadata returned on successful upload will have
       its size field translated based on the given locale.

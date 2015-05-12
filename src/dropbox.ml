@@ -303,11 +303,13 @@ module type S = sig
   val shared_folders : ?shared_folder_id: string -> ?include_membership: bool
                       -> t -> shared_folder list Lwt.t
 
-  val files_put : t -> ?locale: string -> ?overwrite: bool ->
-                  ?parent_rev: string -> ?autorename: bool -> string ->
-                  [ `String of string
-                  | `Strings of string list
-                  | `Stream of string Lwt_stream.t ] -> metadata Lwt.t
+  val files_put :
+    t -> ?locale: string -> ?overwrite: bool ->
+    ?parent_rev: string -> ?autorename: bool -> string ->
+    [ `String of string
+    | `Strings of string list
+    | `Stream of string Lwt_stream.t
+    | `Stream_len of string Lwt_stream.t * int] -> metadata Lwt.t
 
   val chunked_upload :
     t -> ?upload_id: chunked_upload_id -> ?offset: int ->
@@ -669,20 +671,29 @@ module Make(Client: Cohttp_lwt.Client) = struct
     | _ -> return [Json.shared_folder_of_string body]
 
 
+  let add_content_length headers len =
+    Cohttp.Header.add headers "Content-Length" (string_of_int len)
+
   let files_put t ?(locale="") ?(overwrite=true) ?(parent_rev="")
                 ?(autorename=true) fn content =
     let headers = headers t in
-    (* let headers = Cohttp.Header.add (headers t)
-      "Content-Length" (string_of_int len) in *)
     let u =
       Uri.of_string("https://api-content.dropbox.com/1/files_put/auto/" ^ fn) in
     let q = [("overwrite", [string_of_bool overwrite]);
              ("autorename", [string_of_bool autorename])] in
     let q = if locale <> "" then ("locale", [locale]) :: q else q in
     let q = if parent_rev <> "" then ("parent_rev",[parent_rev]) :: q else q in
-    let body = match content with
-      | (`String _ | `Strings _) as b -> b
-      | `Stream stream -> Cohttp_lwt_body.of_stream stream in
+    let headers, body = match content with
+      | `String s as b ->
+         add_content_length headers (String.length s), b
+      | `Strings l as b ->
+         let len = List.fold_left (fun l s -> l + String.length s) 0 l in
+         add_content_length headers len, b
+      | `Stream stream ->
+         headers, Cohttp_lwt_body.of_stream stream
+      | `Stream_len (stream, len) ->
+         (add_content_length headers len,
+          Cohttp_lwt_body.of_stream stream) in
     Client.put ~headers ~body (Uri.with_query u q)
     >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
