@@ -133,18 +133,18 @@ Executable "shared_folders"
   Install:      false
   CompiledObject: best
 
-Executable "stream_files_put"
+Executable "files_put_stream"
   Build$:       flag(tests)
   Path:         tests
-  MainIs:       stream_files_put.ml
+  MainIs:       files_put_stream.ml
   BuildDepends: dropbox.lwt, unix
   Install:      false
   CompiledObject: best
 
-Executable "cohttp_body_files_put"
+Executable "files_put_cohttp_body"
   Build$:       flag(tests)
   Path:         tests
-  MainIs:       cohttp_body_files_put.ml
+  MainIs:       files_put_cohttp_body.ml
   BuildDepends: dropbox.lwt, unix
   Install:      false
   CompiledObject: best
