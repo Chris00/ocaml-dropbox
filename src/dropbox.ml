@@ -259,9 +259,10 @@ module type S = sig
         expires: Date.t;
         visibility: visibility }
 
+  type chunked_upload_id = private string
+
   type chunked_upload
-    = Dropbox_t.chunked_upload
-    = { upload_id: string;
+    = { upload_id: chunked_upload_id;
         offset: int;
         expires: Date.t }
 
@@ -308,12 +309,15 @@ module type S = sig
                   | `Strings of string list
                   | `Stream of string Lwt_stream.t ] -> metadata Lwt.t
 
-  val chunked_upload : t -> ?upload_id: string -> ?offset: int ->
-                       Cohttp_lwt_body.t -> chunked_upload Lwt.t
+  val chunked_upload :
+    t -> ?upload_id: chunked_upload_id -> ?offset: int ->
+    [ `String of string
+    | `Strings of string list
+    | `Stream of string Lwt_stream.t ] -> chunked_upload Lwt.t
 
   val commit_chunked_upload : t -> ?locale: string -> ?overwrite: bool ->
                               ?parent_rev: string -> ?autorename: bool ->
-                              string -> string -> metadata Lwt.t
+                              chunked_upload_id -> string -> metadata Lwt.t
 
   module Fileops : sig
 
@@ -396,6 +400,8 @@ module Make(Client: Cohttp_lwt.Client) = struct
                   = { time_taken: Date.t option;
                       duration: float option;
                       lat_long: (float * float) option }
+
+  type chunked_upload_id = string
 
   type t = OAuth2.token
 
@@ -681,14 +687,18 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
 
+  let chunked_upload_uri =
+    Uri.of_string "https://api-content.dropbox.com/1/chunked_upload"
+
   let chunked_upload t ?(upload_id="") ?(offset=0) chunked_data =
-    let u = Uri.of_string("https://api-content.dropbox.com/1/chunked_upload") in
     let q = if upload_id <> "" then [("upload_id",[upload_id])] else [] in
-    let q = if offset != 0 then ("offset",[string_of_int offset]) :: q else q in
-    let u = Uri.with_query u q in
-    Client.put ~body:chunked_data ~chunked:true ~headers:(headers t) u
-    >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
-    >>= fun body -> return(Json.chunked_upload_of_string body)
+    let q = if offset <> 0 then ("offset",[string_of_int offset]) :: q else q in
+    let u = Uri.with_query chunked_upload_uri q in
+    Client.put ~body:(chunked_data :> Cohttp_lwt_body.t)
+               ~chunked:true ~headers:(headers t) u
+    >>= check_errors >>= fun (_, body) ->
+    Cohttp_lwt_body.to_string body >>= fun body ->
+    return(Json.chunked_upload_of_string body)
 
 
   let commit_chunked_upload t ?(locale="") ?(overwrite=true) ?(parent_rev="")

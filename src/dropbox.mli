@@ -411,13 +411,6 @@ module type S = sig
             that expiration is effectively not an issue. *)
       }
 
-  type chunked_upload
-    = Dropbox_t.chunked_upload
-    = { upload_id: string; (** The ID of the in-progress upload. *)
-        offset: int;       (** The byte offset of this chunk. *)
-        expires: Date.t    (** The time limit to finish the upload.*)
-      }
-
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
                  string -> (metadata * string Lwt_stream.t) option Lwt.t
   (** [get_file t name] return the metadata for the file and a stream of
@@ -735,9 +728,10 @@ module type S = sig
       @param autorename This value determines what happens when there
       is a conflict.  If [true] (the default), the file being uploaded
       will be automatically renamed to avoid the conflict.  (For
-      example, test.txt might be automatically renamed to test
-      (1).txt.)  The new name can be obtained from the returned
-      metadata.  If [false], the call will fail with a [Conflict] error.
+      example, test.txt might be automatically renamed to
+      test (1).txt.)  The new name can be obtained from the returned
+      metadata.  If [false], the call will fail with a [Conflict]
+      error.
 
       Possible errors:
       Conflict The call failed because a conflict occurred. This means a file
@@ -747,24 +741,45 @@ module type S = sig
       Invalid_arg Returned if the request does not contain an [upload_id] or
       if there is no chunked upload matching the given [upload_id]. *)
 
-  val chunked_upload : t -> ?upload_id: string -> ?offset: int ->
-                       Cohttp_lwt_body.t -> chunked_upload Lwt.t
-  (** [chunked_upload stream] return the JSON chunked_upload for the
-      uploaded chunk.
+  type chunked_upload_id = private string
+
+  type chunked_upload
+    = { upload_id: chunked_upload_id; (** The ID of the in-progress upload. *)
+        offset: int;       (** The byte offset of this chunk. *)
+        expires: Date.t    (** The time limit to finish the upload.*)
+      }
+
+  val chunked_upload :
+    t -> ?upload_id: chunked_upload_id -> ?offset: int ->
+    [ `String of string
+    | `Strings of string list
+    | `Stream of string Lwt_stream.t ] -> chunked_upload Lwt.t
+  (** [chunked_upload chunk] upload the [chunk] and return the ID and
+      offset for the subsequent upload of the same file.  This allows
+      to upload large files to Dropbox (larger than 150Mb which is the
+      limit for {!files_put}).  Chunks can be any size up to 150 MB.
+      A typical chunk is 4 MB.  Using large chunks will mean fewer
+      calls to {!chunked_upload} and faster overall throughput.
+      However, whenever a transfer is interrupted, you will have to
+      resume at the beginning of the last chunk, so it is often safer
+      to use smaller chunks.
 
       @param upload_id The unique ID of the in-progress upload on the server.
-      If left blank, the server will create a new upload session.
+      If not set, the server will create a new upload session.
 
-      @param offset The byte offset of this chunk, relative to the beginning
-      of the full file. The server will verify that this matches the offset it
-      expects. If it does not, the server will return an error with the
-      expected offset. *)
+      @param offset The byte offset of this chunk, relative to the
+      beginning of the full file. The server will verify that this
+      matches the offset it expects.  If it does not,
+      {!chunked_upload} will fail with an {!Invalid_arg} error. *)
 
   val commit_chunked_upload : t -> ?locale: string -> ?overwrite: bool ->
                               ?parent_rev: string -> ?autorename: bool ->
-                              string -> string -> metadata Lwt.t
-  (** [commit_chunked_upload upload_id name] Return the metadata for the
-      uploaded file using chunked_upload.
+                              chunked_upload_id -> string -> metadata Lwt.t
+  (** [commit_chunked_upload upload_id path] complete the upload
+      initiated by {!chunked_upload}.  Save the uploaded data under
+      [path] and return the metadata for the uploaded file using
+      chunked_upload.  [upload_id] is used to identify the chunked
+      upload session you'd like to commit.
 
       @param locale The metadata returned on successful upload will have its
       size field translated based on the given locale.
@@ -785,20 +800,17 @@ module type S = sig
       @param autorename This value, either [true] (default) or [false],
       determines what happens when there is a conflict. If [true], the file
       being uploaded will be automatically renamed to avoid the conflict.
-      (For example, test.txt might be automatically renamed to test (1).txt.)
+      (For example, test.txt might be automatically renamed to test (1).txt.)
       The new name can be obtained from the returned metadata. If [false],
       the call will fail with a Conflict response code.
 
-      @param upload_id Used to identify the chunked upload session you'd like
-      to commit.
-
       Possible errors:
-      Conflict The call failed because a conflict occurred. This means a file
-      already existed at the specified path, [overwrite] was [false], and the
-      [parent_rev] (if specified) didn't match the current rev.
+      Fail with [Conflict] if a conflict occurred. This means a file
+      already existed at the specified path, [overwrite] was [false],
+      and the [parent_rev] (if specified) didn't match the current rev.
 
-      Invalid_arg Returned if the request does not contain an [upload_id] or
-      if there is no chunked upload matching the given [upload_id]. *)
+      Fail with [Invalid_arg] if there is no chunked upload matching
+      the given [upload_id]. *)
 
 
   module Fileops : sig
