@@ -750,13 +750,13 @@ module type S = sig
   type chunked_upload_id = private string
 
   type chunked_upload
-    = { upload_id: chunked_upload_id; (** The ID of the in-progress upload. *)
-        offset: int;       (** The byte offset of this chunk. *)
-        expires: Date.t    (** The time limit to finish the upload.*)
+    = { id: chunked_upload_id; (** The ID of the in-progress upload. *)
+        ofs: int;          (** The byte offset for the next chunk. *)
+        expires: Date.t    (** The time limit to finish the upload. *)
       }
 
   val chunked_upload :
-    t -> ?upload_id: chunked_upload_id -> ?offset: int ->
+    t -> ?id: chunked_upload_id -> ?ofs: int ->
     [ `String of string
     | `Strings of string list
     | `Stream of string Lwt_stream.t ] -> chunked_upload Lwt.t
@@ -770,10 +770,10 @@ module type S = sig
       resume at the beginning of the last chunk, so it is often safer
       to use smaller chunks.
 
-      @param upload_id The unique ID of the in-progress upload on the server.
+      @param id The unique ID of the in-progress upload on the server.
       If not set, the server will create a new upload session.
 
-      @param offset The byte offset of this chunk, relative to the
+      @param ofs The byte offset of this chunk, relative to the
       beginning of the full file. The server will verify that this
       matches the offset it expects.  If it does not,
       {!chunked_upload} will fail with an {!Invalid_arg} error. *)

@@ -262,8 +262,8 @@ module type S = sig
   type chunked_upload_id = private string
 
   type chunked_upload
-    = { upload_id: chunked_upload_id;
-        offset: int;
+    = { id: chunked_upload_id;
+        ofs: int;
         expires: Date.t }
 
   val get_file : t -> ?rev: string -> ?start: int -> ?len: int ->
@@ -312,7 +312,7 @@ module type S = sig
     | `Stream_len of string Lwt_stream.t * int] -> metadata Lwt.t
 
   val chunked_upload :
-    t -> ?upload_id: chunked_upload_id -> ?offset: int ->
+    t -> ?id: chunked_upload_id -> ?ofs: int ->
     [ `String of string
     | `Strings of string list
     | `Stream of string Lwt_stream.t ] -> chunked_upload Lwt.t
@@ -704,9 +704,9 @@ module Make(Client: Cohttp_lwt.Client) = struct
   let chunked_upload_uri =
     Uri.of_string "https://api-content.dropbox.com/1/chunked_upload"
 
-  let chunked_upload t ?(upload_id="") ?(offset=0) chunked_data =
-    let q = if upload_id <> "" then [("upload_id",[upload_id])] else [] in
-    let q = if offset <> 0 then ("offset",[string_of_int offset]) :: q else q in
+  let chunked_upload t ?(id="") ?(ofs=0) chunked_data =
+    let q = if id <> "" then [("upload_id", [id])] else [] in
+    let q = if ofs <> 0 then ("offset", [string_of_int ofs]) :: q else q in
     let u = Uri.with_query chunked_upload_uri q in
     Client.put ~body:(chunked_data :> Cohttp_lwt_body.t)
                ~chunked:true ~headers:(headers t) u
