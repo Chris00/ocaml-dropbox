@@ -321,7 +321,10 @@ module type S = sig
                               ?parent_rev: string -> ?autorename: bool ->
                               chunked_upload_id -> string -> metadata Lwt.t
 
-  module Fileops : sig
+  val previews : t -> ?rev: string -> string ->
+                 (string * string * string Lwt_stream.t) option Lwt.t
+
+module Fileops : sig
 
 
   end
@@ -729,6 +732,28 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= fun (_, body) -> Cohttp_lwt_body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
 
+  let get_previews k (r, body) =
+    (* Extract content-type and original-content-length from the header *)
+    match Cohttp.((Header.get r.Response.headers "Content-Type"),
+          (Header.get r.Response.headers "Original-Content-Length")) with
+    | Some c_t, Some c_l -> k c_t c_l body
+    | _ , _ ->
+       (* Should not happen *)
+       let msg = {
+           error = "content-length/type";
+           error_description = "Missing content-length/type header" } in
+       fail(Error(Server_error(500, msg)))
+
+  let stream_of_file_prev =
+    get_previews (fun content_type content_length body ->
+    return(Some(content_type, content_length, Cohttp_lwt_body.to_stream body)))
+
+  let previews t ?(rev="") fn =
+    let u =
+      Uri.of_string("https://api-content.dropbox.com/1/previews/auto/" ^ fn) in
+    let u = if rev <> "" then Uri.with_query u ["rev",[rev]] else u in
+    Client.get ~headers:(headers t) u
+    >>= check_errors_404 stream_of_file_prev
 
   module Fileops = struct
 
