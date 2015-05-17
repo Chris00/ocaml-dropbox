@@ -18,7 +18,7 @@ let download t fn =
       return_unit in
     Lwt_stream.iter_s write stream >>= fun () ->
     Lwt_unix.close fd >>= fun () ->
-    Lwt_io.printlf "Wrote %s" fn
+    Lwt_io.printlf "Wrote \"%s\"." fname
 
 let main t args =
   match args with
