@@ -11,7 +11,7 @@ let string_to_root a = match a with
   | _ -> invalid_arg "root must be auto, dropbox or sandbox"
 
 let delete t ?root path =
-  D.Fileops.delete t ?root path
+  D.delete t ?root path
   >>= function
   | `Some m -> Lwt_io.printlf "%s" (Dropbox_j.string_of_metadata m)
   | `None -> Lwt_io.printlf "No file %s" path

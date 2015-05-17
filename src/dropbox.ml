@@ -329,29 +329,28 @@ module type S = sig
   val previews : t -> ?rev: string -> string ->
                  (string * string * string Lwt_stream.t) option Lwt.t
 
-  module Fileops : sig
-    type root = [ `Auto | `Dropbox | `Sandbox ]
 
-    val copy : t -> ?locale: string -> ?root: root ->
-               [ `From_path of string | `From_copy_ref of string ] ->
-               string -> [ `Some of metadata
-                         | `None | `Invalid of string
-                         | `Too_many_files ] Lwt.t
+  type root = [ `Auto | `Dropbox | `Sandbox ]
 
-    val create_folder : t -> ?locale: string -> ?root: root
-                        -> string -> [ `Some of metadata
-                                     | `Invalid of string ] Lwt.t
+  val copy : t -> ?locale: string -> ?root: root ->
+             [ `From_path of string | `From_copy_ref of string ] ->
+             string -> [ `Some of metadata
+                       | `None | `Invalid of string
+                       | `Too_many_files ] Lwt.t
 
-    val delete :
-      t -> ?locale: string -> ?root: root ->
-      string -> [ `Some of metadata | `None | `Too_many_files ] Lwt.t
+  val create_folder : t -> ?locale: string -> ?root: root ->
+                      string -> [ `Some of metadata
+                                   | `Invalid of string ] Lwt.t
 
-    val move : t -> ?locale: string -> ?root: root -> string
-               -> string -> [ `Some of metadata
-                            | `None
-                            | `Invalid of string
-                            | `Too_many_files ] Lwt.t
-  end
+  val delete :
+    t -> ?locale: string -> ?root: root ->
+    string -> [ `Some of metadata | `None | `Too_many_files ] Lwt.t
+
+  val move : t -> ?locale: string -> ?root: root ->
+             string -> string -> [ `Some of metadata
+                                 | `None
+                                 | `Invalid of string
+                                 | `Too_many_files ] Lwt.t
 end
 
 module Make(Client: Cohttp_lwt.Client) = struct
@@ -797,112 +796,113 @@ module Make(Client: Cohttp_lwt.Client) = struct
     Client.get ~headers:(headers t) u
     >>= check_errors_404 stream_of_file_prev
 
-  module Fileops = struct
-    type root = [ `Auto | `Dropbox | `Sandbox ]
 
-    let copy_uri =
-      Uri.of_string("https://api.dropbox.com/1/fileops/copy")
+  (* File operations *)
 
-    let is_OAuth_substring s =
-      try
-        let i = String.index s 'O' in
-        i + 4 < String.length s
-        && s.[i+1] = 'A' && s.[i+2] = 'u' && s.[i+3] = 't' && s.[i+4] = 'h'
-      with Not_found -> false
+  type root = [ `Auto | `Dropbox | `Sandbox ]
 
-    let error_oauth_or_invalid body =
-      Cohttp_lwt_body.to_string body >>= fun body ->
-      let e = Json.error_description_of_string body in
-      if is_OAuth_substring e.error then
-        fail(Error(Invalid_oauth e))
-      else
-        return(`Invalid e.error)
+  let copy_uri =
+    Uri.of_string("https://api.dropbox.com/1/fileops/copy")
 
-    let metadata_of_response (_, body) =
-      Cohttp_lwt_body.to_string body >>= fun body ->
-      return(`Some(Json.metadata_of_string body))
+  let is_OAuth_substring s =
+    try
+      let i = String.index s 'O' in
+      i + 4 < String.length s
+      && s.[i+1] = 'A' && s.[i+2] = 'u' && s.[i+3] = 't' && s.[i+4] = 'h'
+    with Not_found -> false
 
-    let copy_response ((rq, body) as r) =
-      (* Fobidden is used when the copy operation is not allowed (in
-         addition to incorrect OAuth).  Try to distinguish the two to
-         have finer error reporting. *)
-      match rq.Cohttp.Response.status with
-      | `Not_found -> return `None
-      | `Forbidden -> error_oauth_or_invalid body
-      | `Not_acceptable -> return `Too_many_files
-      | _ -> check_errors r >>= metadata_of_response
+  let error_oauth_or_invalid body =
+    Cohttp_lwt_body.to_string body >>= fun body ->
+    let e = Json.error_description_of_string body in
+    if is_OAuth_substring e.error then
+      fail(Error(Invalid_oauth e))
+    else
+      return(`Invalid e.error)
 
-    let copy t ?(locale="") ?(root=`Auto) source to_path =
-      let q = [("to_path",[to_path])] in
-      let q = if locale <> "" then ("locale",[locale]) :: q else q in
-      let q = match source with
-        | `From_path from_path -> ("from_path",[from_path]) :: q
-        | `From_copy_ref copy_ref -> ("from_copy_ref",[copy_ref]) :: q in
-      let q = ("root", [match root with
-                        | `Auto -> "auto"
-                        | `Dropbox -> "dropbox"
-                        | `Sandbox -> "sandbox"]) :: q in
-      let u = Uri.with_query copy_uri q in
-      Client.post ~headers:(headers t) u
-      >>= copy_response
+  let metadata_of_response (_, body) =
+    Cohttp_lwt_body.to_string body >>= fun body ->
+    return(`Some(Json.metadata_of_string body))
 
-    let create_folder_uri =
-      Uri.of_string("https://api.dropbox.com/1/fileops/create_folder")
+  let copy_response ((rq, body) as r) =
+    (* Fobidden is used when the copy operation is not allowed (in
+       addition to incorrect OAuth).  Try to distinguish the two to
+       have finer error reporting. *)
+    match rq.Cohttp.Response.status with
+    | `Not_found -> return `None
+    | `Forbidden -> error_oauth_or_invalid body
+    | `Not_acceptable -> return `Too_many_files
+    | _ -> check_errors r >>= metadata_of_response
 
-    let create_folder_response ((rq, body) as r) =
-      match rq.Cohttp.Response.status with
-      | `Forbidden -> error_oauth_or_invalid body
-      | _ -> check_errors r >>= metadata_of_response
+  let copy t ?(locale="") ?(root=`Auto) source to_path =
+    let q = [("to_path",[to_path])] in
+    let q = if locale <> "" then ("locale",[locale]) :: q else q in
+    let q = match source with
+      | `From_path from_path -> ("from_path",[from_path]) :: q
+      | `From_copy_ref copy_ref -> ("from_copy_ref",[copy_ref]) :: q in
+    let q = ("root", [match root with
+                      | `Auto -> "auto"
+                      | `Dropbox -> "dropbox"
+                      | `Sandbox -> "sandbox"]) :: q in
+    let u = Uri.with_query copy_uri q in
+    Client.post ~headers:(headers t) u
+    >>= copy_response
 
-    let create_folder t ?(locale="") ?(root=`Auto) path =
-      let q = [("path",[path])] in
-      let q = if locale <> "" then ("locale",[locale]) :: q else q in
-      let q = match root with
-        | `Auto -> ("root",["auto"]) :: q
-        | `Dropbox -> ("root",["dropbox"]) :: q
-        | `Sandbox -> ("root",["sandbox"]) :: q in
-      let u = Uri.with_query create_folder_uri q in
-      Client.post ~headers:(headers t) u
-      >>= create_folder_response
+  let create_folder_uri =
+    Uri.of_string("https://api.dropbox.com/1/fileops/create_folder")
 
-    let delete_uri =
-      Uri.of_string("https://api.dropbox.com/1/fileops/delete")
+  let create_folder_response ((rq, body) as r) =
+    match rq.Cohttp.Response.status with
+    | `Forbidden -> error_oauth_or_invalid body
+    | _ -> check_errors r >>= metadata_of_response
 
-    let delete_response ((rq, _) as r) =
-      match rq.Cohttp.Response.status with
-      | `Not_found -> return `None
-      | `Not_acceptable -> return `Too_many_files
-      | _ -> check_errors r >>= metadata_of_response
+  let create_folder t ?(locale="") ?(root=`Auto) path =
+    let q = [("path",[path])] in
+    let q = if locale <> "" then ("locale",[locale]) :: q else q in
+    let q = match root with
+      | `Auto -> ("root",["auto"]) :: q
+      | `Dropbox -> ("root",["dropbox"]) :: q
+      | `Sandbox -> ("root",["sandbox"]) :: q in
+    let u = Uri.with_query create_folder_uri q in
+    Client.post ~headers:(headers t) u
+    >>= create_folder_response
 
-    let delete t ?(locale="") ?(root=`Auto) path =
-      let q = [("path",[path])] in
-      let q = if locale <> "" then ("locale",[locale]) :: q else q in
-      let q = match root with
-        | `Auto -> ("root",["auto"]) :: q
-        | `Dropbox -> ("root",["dropbox"]) :: q
-        | `Sandbox -> ("root",["sandbox"]) :: q in
-      let u = Uri.with_query delete_uri q in
-      Client.post ~headers:(headers t) u
-      >>= delete_response
+  let delete_uri =
+    Uri.of_string("https://api.dropbox.com/1/fileops/delete")
 
-    let move_uri = Uri.of_string("https://api.dropbox.com/1/fileops/move")
+  let delete_response ((rq, _) as r) =
+    match rq.Cohttp.Response.status with
+    | `Not_found -> return `None
+    | `Not_acceptable -> return `Too_many_files
+    | _ -> check_errors r >>= metadata_of_response
 
-    let move_response ((rq, body) as r) =
-      match rq.Cohttp.Response.status with
-      | `Forbidden -> error_oauth_or_invalid body
-      | `Not_found -> return `None
-      | `Not_acceptable -> return `Too_many_files
-      | _ -> check_errors r >>= metadata_of_response
+  let delete t ?(locale="") ?(root=`Auto) path =
+    let q = [("path",[path])] in
+    let q = if locale <> "" then ("locale",[locale]) :: q else q in
+    let q = match root with
+      | `Auto -> ("root",["auto"]) :: q
+      | `Dropbox -> ("root",["dropbox"]) :: q
+      | `Sandbox -> ("root",["sandbox"]) :: q in
+    let u = Uri.with_query delete_uri q in
+    Client.post ~headers:(headers t) u
+    >>= delete_response
 
-    let move t ?(locale="") ?(root=`Auto) from_path to_path =
-      let q = [("from_path",[from_path]);("to_path",[to_path])] in
-      let q = if locale <> "" then ("locale",[locale]) :: q else q in
-      let q = match root with
-        | `Auto -> ("root",["auto"]) :: q
-        | `Dropbox -> ("root",["dropbox"]) :: q
-        | `Sandbox -> ("root",["sandbox"]) :: q in
-      let u = Uri.with_query move_uri q in
-      Client.post ~headers:(headers t) u
-      >>= move_response
-  end
+  let move_uri = Uri.of_string("https://api.dropbox.com/1/fileops/move")
+
+  let move_response ((rq, body) as r) =
+    match rq.Cohttp.Response.status with
+    | `Forbidden -> error_oauth_or_invalid body
+    | `Not_found -> return `None
+    | `Not_acceptable -> return `Too_many_files
+    | _ -> check_errors r >>= metadata_of_response
+
+  let move t ?(locale="") ?(root=`Auto) from_path to_path =
+    let q = [("from_path",[from_path]);("to_path",[to_path])] in
+    let q = if locale <> "" then ("locale",[locale]) :: q else q in
+    let q = match root with
+      | `Auto -> ("root",["auto"]) :: q
+      | `Dropbox -> ("root",["dropbox"]) :: q
+      | `Sandbox -> ("root",["sandbox"]) :: q in
+    let u = Uri.with_query move_uri q in
+    Client.post ~headers:(headers t) u
+    >>= move_response
 end

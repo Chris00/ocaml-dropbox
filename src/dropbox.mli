@@ -16,7 +16,7 @@ type error =
       timestamp...). Unfortunately, re-authenticating the user won't
       help here. *)
   | Conflict of error_description
-  (** A conflict occured when uploading a file.  See {!files_put}. *)
+  (** A conflict occured when uploading a file.  See {!S.files_put}. *)
   | Too_many_requests of error_description
   (** Your app is making too many requests and is being rate limited.
       [Too_many_requests] can trigger on a per-app or per-user
@@ -618,7 +618,7 @@ module type S = sig
       or directory [fname].  A return value of [None] means that
       [fname] does not exist.  {!copy_ref} can be used to copy that
       file to another user's Dropbox by passing it in as the
-      [from_copy_ref] parameter on {!Fileops.copy}.  All links are
+      [from_copy_ref] parameter on {!copy}.  All links are
       currently set to expire far enough in the future so that
       expiration is effectively not an issue. *)
 
@@ -776,7 +776,7 @@ module type S = sig
       @param ofs The byte offset of this chunk, relative to the
       beginning of the full file. The server will verify that this
       matches the offset it expects.  If it does not,
-      {!chunked_upload} will fail with an {!Invalid_arg} error. *)
+      {!chunked_upload} will fail with an [Invalid_arg] error. *)
 
   val commit_chunked_upload : t -> ?locale: string -> ?overwrite: bool ->
                               ?parent_rev: string -> ?autorename: bool ->
@@ -856,15 +856,17 @@ module type S = sig
       @param rev The revision of the file to retrieve. This defaults to
       the most recent revision. *)
 
-  module Fileops : sig
-    type root = [ `Auto | `Dropbox | `Sandbox ]
 
-    val copy : t -> ?locale: string -> ?root: root ->
-               [ `From_path of string | `From_copy_ref of string ] ->
-               string -> [ `Some of metadata
-                         | `None | `Invalid of string
-                         | `Too_many_files ] Lwt.t
-    (** [copy t source to_path] copy the file or folder.  The [source]
+  (** {2:fileops File Operations} *)
+
+  type root = [ `Auto | `Dropbox | `Sandbox ]
+
+  val copy : t -> ?locale: string -> ?root: root ->
+             [ `From_path of string | `From_copy_ref of string ] ->
+             string -> [ `Some of metadata
+                       | `None | `Invalid of string
+                       | `Too_many_files ] Lwt.t
+  (** [copy t source to_path] copy the file or folder.  The [source]
       can either be:
       - [`From_path]: specifies the file or folder to be copied from
                       relative to the root;
@@ -889,10 +891,10 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.  *)
 
-    val create_folder : t -> ?locale: string -> ?root: root ->
-                        string -> [ `Some of metadata
-                                  | `Invalid of string ] Lwt.t
-    (** [create_folder path] create the folder [path] (interpreted
+  val create_folder : t -> ?locale: string -> ?root: root ->
+                      string -> [ `Some of metadata
+                                | `Invalid of string ] Lwt.t
+  (** [create_folder path] create the folder [path] (interpreted
       relatively to [root]) and return the metadata for the new folder.
       Return [`Invalid] if [path] already exists.
 
@@ -904,10 +906,10 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales. *)
 
-    val delete :
-      t -> ?locale: string -> ?root: root ->
-      string -> [ `Some of metadata | `None | `Too_many_files ] Lwt.t
-    (** [delete path] delete the file or folder [path] and return the
+  val delete :
+    t -> ?locale: string -> ?root: root ->
+    string -> [ `Some of metadata | `None | `Too_many_files ] Lwt.t
+  (** [delete path] delete the file or folder [path] and return the
       metadata of it.  Return [`None] if [path] does not exist and
       [`Too_many_files] when too many files would be involved in the
       operation for it to complete successfully.  The limit is
@@ -923,12 +925,12 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales. *)
 
-    val move : t -> ?locale: string -> ?root: root ->
-               string -> string -> [ `Some of metadata
-                                   | `None
-                                   | `Invalid of string
-                                   | `Too_many_files ] Lwt.t
-    (** [move from_path to_path] move the file or folder [from_path]
+  val move : t -> ?locale: string -> ?root: root ->
+             string -> string -> [ `Some of metadata
+                                 | `None
+                                 | `Invalid of string
+                                 | `Too_many_files ] Lwt.t
+  (** [move from_path to_path] move the file or folder [from_path]
       to [to_path].  If everything goes well, the metadata of the
       moved file is returned.
       - [`None] means that the [from_path] does not exist.
@@ -946,7 +948,6 @@ module type S = sig
       and other language specific text.  See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales. *)
-  end
 end
 
 module Make(Client: Cohttp_lwt.Client) : S

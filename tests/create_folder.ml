@@ -11,7 +11,7 @@ let string_to_root a = match a with
   | _ -> invalid_arg "root must be auto, dropbox or sandbox"
 
 let create_folder t ?root path =
-  D.Fileops.create_folder t ?root path
+  D.create_folder t ?root path
   >>= function
   | `Some m -> Lwt_io.printlf "%s" (Dropbox_j.string_of_metadata m)
   | `Invalid s -> Lwt_io.printlf "Invalid: %s" s

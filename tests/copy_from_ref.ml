@@ -7,7 +7,7 @@ module D = Dropbox_lwt_unix
 let main t args =
   match args with
   | [copy_ref; to_path] ->
-     D.Fileops.copy t (`From_copy_ref copy_ref) to_path
+     D.copy t (`From_copy_ref copy_ref) to_path
      >>= (function
            | `Some m -> Lwt_io.printlf "%s" (Dropbox_j.string_of_metadata m)
            | `None -> Lwt_io.printlf "No such copy_ref as %s" copy_ref
