@@ -10,14 +10,18 @@ let string_to_root a = match a with
   | "sandbox" -> `Sandbox
   | _ -> invalid_arg "root must be auto, dropbox or sandbox"
 
+let delete t ?root path =
+  D.Fileops.delete t ?root path
+  >>= function
+  | `Some m -> Lwt_io.printlf "%s" (Dropbox_j.string_of_metadata m)
+  | `None -> Lwt_io.printlf "No file %s" path
+  | `Too_many_files -> Lwt_io.printlf "Too many files involved"
+
 let main t args =
   match args with
-  | [] -> Lwt_io.printlf "No file or folder specified"
-  | [path; root] -> D.Fileops.delete t ~root:(string_to_root root) path
-      >>= (function
-      | Some m -> Lwt_io.printlf "%s" (Dropbox_j.string_of_metadata m)
-      | None -> Lwt_io.printlf "No file %s" path)
-  | _ -> Lwt_io.printf "%s [path] <root>\n" Sys.argv.(0)
+  | [path] -> delete t path
+  | [path; root] -> delete t ~root:(string_to_root root) path
+  | _ -> Lwt_io.printf "%s <path> [root]\n" Sys.argv.(0)
 
 let () =
   Common.run main

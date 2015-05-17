@@ -345,8 +345,9 @@ module type S = sig
     val create_folder : t -> ?locale: string -> ?root: root
                         -> string -> metadata option Lwt.t
 
-    val delete : t -> ?locale: string -> ?root: root -> string ->
-                 metadata option Lwt.t
+    val delete :
+      t -> ?locale: string -> ?root: root ->
+      string -> [ `Some of metadata | `None | `Too_many_files ] Lwt.t
 
     val move : t -> ?locale: string -> ?root: root -> string
                -> string -> metadata option Lwt.t
@@ -809,6 +810,10 @@ module Make(Client: Cohttp_lwt.Client) = struct
         && s.[i+1] = 'A' && s.[i+2] = 'u' && s.[i+3] = 't' && s.[i+4] = 'h'
       with Not_found -> false
 
+    let metadata_of_response2 (_, body) =
+      Cohttp_lwt_body.to_string body >>= fun body ->
+      return(`Some(Json.metadata_of_string body))
+
     let copy_response ((rq, body) as r) =
       (* Fobidden is used when the copy operation is not allowed (in
          addition to incorrect OAuth).  Try to distinguish the two to
@@ -823,9 +828,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
          else
            return(`Invalid e.error)
       | `Not_acceptable -> return `Too_many_files
-      | _ -> check_errors r >>= fun (_, body) ->
-             Cohttp_lwt_body.to_string body >>= fun body ->
-             return(`Some(Json.metadata_of_string body))
+      | _ -> check_errors r >>= metadata_of_response2
 
     let copy t ?(locale="") ?(root=`Auto) source to_path =
       let q = [("to_path",[to_path])] in
@@ -858,6 +861,12 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let delete_uri =
       Uri.of_string("https://api.dropbox.com/1/fileops/delete")
 
+    let delete_response ((rq, _) as r) =
+      match rq.Cohttp.Response.status with
+      | `Not_found -> return `None
+      | `Not_acceptable -> return `Too_many_files
+      | _ -> check_errors r >>= metadata_of_response2
+
     let delete t ?(locale="") ?(root=`Auto) path =
       let q = [("path",[path])] in
       let q = if locale <> "" then ("locale",[locale]) :: q else q in
@@ -867,7 +876,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
         | `Sandbox -> ("root",["sandbox"]) :: q in
       let u = Uri.with_query delete_uri q in
       Client.post ~headers:(headers t) u
-      >>= check_errors_404 metadata_of_response
+      >>= delete_response
 
     let move_uri = Uri.of_string("https://api.dropbox.com/1/fileops/move")
 

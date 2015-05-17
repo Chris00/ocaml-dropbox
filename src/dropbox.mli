@@ -908,25 +908,24 @@ module type S = sig
       Possible error:
       Invalid_oauth There is already a folder at the given destination. *)
 
-    val delete : t -> ?locale: string -> ?root: root ->
-                 string -> metadata option Lwt.t
-    (** [delete path] delte the file or folder [path] and return the
-      metadata of it.
+    val delete :
+      t -> ?locale: string -> ?root: root ->
+      string -> [ `Some of metadata | `None | `Too_many_files ] Lwt.t
+    (** [delete path] delete the file or folder [path] and return the
+      metadata of it.  Return [`None] if [path] does not exist and
+      [`Too_many_files] when too many files would be involved in the
+      operation for it to complete successfully.  The limit is
+      currently 10,000 files and folders.
 
       @param root The root relative to which path is specified. Valid values
-      are `Auto (default), `Sandbox, and `Dropbox.
+      are [`Auto] (default), [`Sandbox], and [`Dropbox].
 
       @param path The path to the file or folder to be deleted.
 
       @param locale Specify language settings for user error messages
       and other language specific text.  See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
-      documentation} for more information about supported locales.
-
-      Possible errors:
-      Not_acceptable Too many files would be involved in the operation for
-      it to complete successfully. The limit is currently 10,000 files and
-      folders. *)
+      documentation} for more information about supported locales. *)
 
     val move : t -> ?locale: string -> ?root: root ->
                string -> string -> metadata option Lwt.t
