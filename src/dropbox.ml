@@ -759,21 +759,21 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 stream_of_file
 
 
-  let get_previews k (r, body) =
+  let stream_of_file_prev (r, body) =
     (* Extract content-type and original-content-length from the header *)
-    match Cohttp.((Header.get r.Response.headers "Content-Type"),
-          (Header.get r.Response.headers "Original-Content-Length")) with
-    | Some c_t, Some c_l -> k c_t c_l body
+    let open Cohttp in
+    match Header.get r.Response.headers "Content-Type",
+          Header.get r.Response.headers "Original-Content-Length" with
+    | Some content_type, Some content_length ->
+       let body_stream = Cohttp_lwt_body.to_stream body in
+       return(Some(content_type, content_length, body_stream))
     | _ , _ ->
        (* Should not happen *)
        let msg = {
            error = "content-length/type";
-           error_description = "Missing content-length/type header" } in
+           error_description = "Missing content-length or content-type header"
+         } in
        fail(Error(Server_error(500, msg)))
-
-  let stream_of_file_prev =
-    get_previews (fun content_type content_length body ->
-    return(Some(content_type, content_length, Cohttp_lwt_body.to_stream body)))
 
   let previews t ?(rev="") fn =
     let u =

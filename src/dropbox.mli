@@ -820,21 +820,6 @@ module type S = sig
       Fail with [Invalid_arg] if there is no chunked upload matching
       the given [upload_id]. *)
 
-  val previews : t -> ?rev: string -> string ->
-                 (string * string * string Lwt_stream.t) option Lwt.t
-  (** [previews t path] Returns a 3-uple which contains the Content-Type
-      whose values are ["application/pdf"] or ["text/html"], the
-      Original-Content-Length which is the size of the preview data
-      and the stream of its content. A return of [None] means that the
-      file does not exist.
-
-      Note {!previews} are only generated for the files with the following
-      extensions: .doc, .docx, .docm, .ppt, .pps, .ppsx, .ppsm, .pptx,
-      .pptm, .xls, .xlsx, .xlsm, .rtf.
-
-      @param rev The revision of the file to retrieve. This defaults to
-      the most recent revision. *)
-
   val thumbnails : t -> ?format: [ `Jpeg | `Png | `Bmp ]
                    -> ?size: [ `Xs | `S | `M | `L | `Xl ] -> string ->
                    (metadata * string Lwt_stream.t) option Lwt.t
@@ -856,6 +841,22 @@ module type S = sig
       (1024x768).  The image returned may be larger or smaller than
       the size requested, depending on the size and aspect ratio of
       the original image. *)
+
+  val previews : t -> ?rev: string -> string ->
+                 (string * string * string Lwt_stream.t) option Lwt.t
+  (** [previews t path] Returns a 3-uple which contains the
+      Content-Type whose values are ["application/pdf"] or
+      ["text/html"], the Original-Content-Length which is the size of
+      the preview data and the stream of its content.  Return [None]
+      when the file wasn't found the specified path, or wasn't found
+      at the specified [rev].
+
+      Note previews are only generated for the files with the following
+      extensions: .doc, .docx, .docm, .ppt, .pps, .ppsx, .ppsm, .pptx,
+      .pptm, .xls, .xlsx, .xlsm, .rtf.
+
+      @param rev The revision of the file to retrieve. This defaults to
+      the most recent revision. *)
 
   module Fileops : sig
 
