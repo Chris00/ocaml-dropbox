@@ -336,10 +336,11 @@ module type S = sig
   module Fileops : sig
     type root = [ `Auto | `Dropbox | `Sandbox ]
 
-    type source = [ `From_path of string | `From_copy_ref of string ]
-
-    val copy : t -> ?locale: string -> ?root: root
-               -> source -> string -> metadata option Lwt.t
+    val copy : t -> ?locale: string -> ?root: root ->
+               [ `From_path of string | `From_copy_ref of string ] ->
+               string -> [ `Some of metadata
+                         | `None | `Invalid of string
+                         | `Too_many_files ] Lwt.t
 
     val create_folder : t -> ?locale: string -> ?root: root
                         -> string -> metadata option Lwt.t
@@ -436,7 +437,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let session token = token
 
-  let headers t =
+  let headers (t: t) =
     let bearer = "Bearer " ^ (token t) in
     Cohttp.Header.init_with "Authorization" bearer
 
@@ -798,10 +799,33 @@ module Make(Client: Cohttp_lwt.Client) = struct
   module Fileops = struct
     type root = [ `Auto | `Dropbox | `Sandbox ]
 
-    type source = [ `From_path of string | `From_copy_ref of string ]
-
     let copy_uri =
       Uri.of_string("https://api.dropbox.com/1/fileops/copy")
+
+    let is_OAuth_substring s =
+      try
+        let i = String.index s 'O' in
+        i + 4 < String.length s
+        && s.[i+1] = 'A' && s.[i+2] = 'u' && s.[i+3] = 't' && s.[i+4] = 'h'
+      with Not_found -> false
+
+    let copy_response ((rq, body) as r) =
+      (* Fobidden is used when the copy operation is not allowed (in
+         addition to incorrect OAuth).  Try to distinguish the two to
+         have finer error reporting. *)
+      match rq.Cohttp.Response.status with
+      | `Not_found -> return `None
+      | `Forbidden ->
+         Cohttp_lwt_body.to_string body >>= fun body ->
+         let e = Json.error_description_of_string body in
+         if is_OAuth_substring e.error then
+           fail(Error(Invalid_oauth e))
+         else
+           return(`Invalid e.error)
+      | `Not_acceptable -> return `Too_many_files
+      | _ -> check_errors r >>= fun (_, body) ->
+             Cohttp_lwt_body.to_string body >>= fun body ->
+             return(`Some(Json.metadata_of_string body))
 
     let copy t ?(locale="") ?(root=`Auto) source to_path =
       let q = [("to_path",[to_path])] in
@@ -809,13 +833,13 @@ module Make(Client: Cohttp_lwt.Client) = struct
       let q = match source with
         | `From_path from_path -> ("from_path",[from_path]) :: q
         | `From_copy_ref copy_ref -> ("from_copy_ref",[copy_ref]) :: q in
-      let q = match root with
-        | `Auto -> ("root",["auto"]) :: q
-        | `Dropbox -> ("root",["dropbox"]) :: q
-        | `Sandbox -> ("root",["sandbox"]) :: q in
+      let q = ("root", [match root with
+                        | `Auto -> "auto"
+                        | `Dropbox -> "dropbox"
+                        | `Sandbox -> "sandbox"]) :: q in
       let u = Uri.with_query copy_uri q in
       Client.post ~headers:(headers t) u
-      >>= check_errors_404 metadata_of_response
+      >>= copy_response
 
     let create_folder_uri =
       Uri.of_string("https://api.dropbox.com/1/fileops/create_folder")

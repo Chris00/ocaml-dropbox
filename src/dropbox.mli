@@ -861,22 +861,27 @@ module type S = sig
   module Fileops : sig
     type root = [ `Auto | `Dropbox | `Sandbox ]
 
-    type source = [ `From_path of string | `From_copy_ref of string ]
-    (** A polymorphic variant used in the function {! copy} with two values :
-
-        - `From_path : Specifies the file or folder to be copied from
-                       relative to root.
-
-        - `From_copy_ref : Specifies a [copy_ref] generated from a previous
-                           {!copy_ref} call. *)
-
     val copy : t -> ?locale: string -> ?root: root ->
-               -> source -> string -> metadata option Lwt.t
-  (** [copy t source to_path] Return the metadata for the copy of
-      the file or folder.
+               [ `From_path of string | `From_copy_ref of string ] ->
+               string -> [ `Some of metadata
+                         | `None | `Invalid of string
+                         | `Too_many_files ] Lwt.t
+    (** [copy t source to_path] copy the file or folder.  The [source]
+      can either be:
+      - [`From_path]: specifies the file or folder to be copied from
+                      relative to the root;
+      - [`From_copy_ref]: specifies a [copy_ref] generated from a previous
+                          {!copy_ref} call.
 
-      @param to_path Specifies the destination path, including the new name
-      for the file or folder, relative to root.
+      The second argument [to_path] specifies the destination path,
+      including the new name for the file or folder, relative to [root].
+      If everything goes well, the metadata of the copy is returned.
+      - [`None] means that the [source] was not found.
+      - [`Invalid] is returned when there is already a file at the
+        given destination, or one is trying to copy a shared folder
+      - [`Too_many_files] is returned when too many files would be
+        involved in the operation for it to complete successfully.  The
+        limit is currently 10,000 files and folders.
 
       @param root The root relative to which [from_path] and [to_path] are
       specified. Valid values are `Auto (default), `Sandbox, and `Dropbox.
@@ -884,16 +889,7 @@ module type S = sig
       @param locale Specify language settings for user error messages
       and other language specific text.  See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
-      documentation} for more information about supported locales.
-
-      Possible errors:
-      Invalid_oauth An invalid copy operation was attempted (e.g. there is
-      already a file at the given destination, or trying to copy a shared
-      folder).
-
-      Not_acceptable Too many files would be involved in the operation for
-      it to complete successfully. The limit is currently 10,000 files and
-      folders. *)
+      documentation} for more information about supported locales.  *)
 
     val create_folder : t -> ?locale: string -> ?root: root ->
                         string -> metadata option Lwt.t
