@@ -334,8 +334,21 @@ module type S = sig
                  (string * string * string Lwt_stream.t) option Lwt.t
 
   module Fileops : sig
+    type root_fileops = [ `Auto | `Dropbox | `Sandbox ]
 
+    type source = [ `From_path of string | `From_copy_ref of string ]
 
+    val copy : t -> ?locale: string -> ?root: root_fileops
+               -> source -> string -> metadata option Lwt.t
+
+    val create_folder : t -> ?locale: string -> ?root: root_fileops
+                        -> string -> metadata option Lwt.t
+
+    val delete : t -> ?locale: string -> ?root: root_fileops -> string ->
+                 metadata option Lwt.t
+
+    val move : t -> ?locale: string -> ?root: root_fileops -> string
+               -> string -> metadata option Lwt.t
   end
 end
 
@@ -783,7 +796,66 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 stream_of_file_prev
 
   module Fileops = struct
+    type root_fileops = [ `Auto | `Dropbox | `Sandbox ]
 
+    type source = [ `From_path of string | `From_copy_ref of string ]
 
+    let copy_uri =
+      Uri.of_string("https://api.dropbox.com/1/fileops/copy")
+
+    let copy t ?(locale="") ?(root=`Auto) source to_path =
+      let q = [("to_path",[to_path])] in
+      let q = if locale <> "" then ("locale",[locale]) :: q else q in
+      let q = match source with
+        | `From_path from_path -> ("from_path",[from_path]) :: q
+        | `From_copy_ref copy_ref -> ("from_copy_ref",[copy_ref]) :: q in
+      let q = match root with
+        | `Auto -> ("root",["auto"]) :: q
+        | `Dropbox -> ("root",["dropbox"]) :: q
+        | `Sandbox -> ("root",["sandbox"]) :: q in
+      let u = Uri.with_query copy_uri q in
+      Client.post ~headers:(headers t) u
+      >>= check_errors_404 metadata_of_response
+
+    let create_folder_uri =
+      Uri.of_string("https://api.dropbox.com/1/fileops/create_folder")
+
+    let create_folder t ?(locale="") ?(root=`Auto) path =
+      let q = [("path",[path])] in
+      let q = if locale <> "" then ("locale",[locale]) :: q else q in
+      let q = match root with
+        | `Auto -> ("root",["auto"]) :: q
+        | `Dropbox -> ("root",["dropbox"]) :: q
+        | `Sandbox -> ("root",["sandbox"]) :: q in
+      let u = Uri.with_query create_folder_uri q in
+      Client.post ~headers:(headers t) u
+      >>= check_errors_404 metadata_of_response
+
+    let delete_uri =
+      Uri.of_string("https://api.dropbox.com/1/fileops/delete")
+
+    let delete t ?(locale="") ?(root=`Auto) path =
+      let q = [("path",[path])] in
+      let q = if locale <> "" then ("locale",[locale]) :: q else q in
+      let q = match root with
+        | `Auto -> ("root",["auto"]) :: q
+        | `Dropbox -> ("root",["dropbox"]) :: q
+        | `Sandbox -> ("root",["sandbox"]) :: q in
+      let u = Uri.with_query delete_uri q in
+      Client.post ~headers:(headers t) u
+      >>= check_errors_404 metadata_of_response
+
+    let move_uri = Uri.of_string("https://api.dropbox.com/1/fileops/move")
+
+    let move t ?(locale="") ?(root=`Auto) from_path to_path =
+      let q = [("from_path",[from_path]);("to_path",[to_path])] in
+      let q = if locale <> "" then ("locale",[locale]) :: q else q in
+      let q = match root with
+        | `Auto -> ("root",["auto"]) :: q
+        | `Dropbox -> ("root",["dropbox"]) :: q
+        | `Sandbox -> ("root",["sandbox"]) :: q in
+      let u = Uri.with_query move_uri q in
+      Client.post ~headers:(headers t) u
+      >>= check_errors_404 metadata_of_response
   end
 end
