@@ -32,8 +32,6 @@ type error =
   (** Server error 5xx *)
   | Not_modified of error_description
   (** The folder contents have not changed (relies on hash parameter). *)
-  | Not_acceptable of error_description
-  (** There are too many file entries to return. *)
   | Unsupported_media_type of error_description
   (** The image is invalid and cannot be converted to a thumbnail. *)
 
@@ -892,21 +890,19 @@ module type S = sig
       documentation} for more information about supported locales.  *)
 
     val create_folder : t -> ?locale: string -> ?root: root ->
-                        string -> metadata option Lwt.t
-    (** [create_folder path root] return the metadata for the new folder.
+                        string -> [ `Some of metadata
+                                  | `Invalid of string ] Lwt.t
+    (** [create_folder path] create the folder [path] (interpreted
+      relatively to [root]) and return the metadata for the new folder.
+      Return [`Invalid] if [path] already exists.
 
       @param root The root relative to which path is specified. Valid values
-      are `Auto (default), `Sandbox, and `Dropbox.
-
-      @param path The path to the new folder to create relative to root.
+      are [`Auto] (default), [`Sandbox], and [`Dropbox].
 
       @param locale Specify language settings for user error messages
       and other language specific text.  See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
-      documentation} for more information about supported locales.
-
-      Possible error:
-      Invalid_oauth There is already a folder at the given destination. *)
+      documentation} for more information about supported locales. *)
 
     val delete :
       t -> ?locale: string -> ?root: root ->
@@ -928,33 +924,28 @@ module type S = sig
       documentation} for more information about supported locales. *)
 
     val move : t -> ?locale: string -> ?root: root ->
-               string -> string -> metadata option Lwt.t
-    (** [move from_path to_path root] move the file or folder
-      [from_path] and return the metadata for the moved file or
-      folder.
+               string -> string -> [ `Some of metadata
+                                   | `None
+                                   | `Invalid of string
+                                   | `Too_many_files ] Lwt.t
+    (** [move from_path to_path] move the file or folder [from_path]
+      to [to_path].  If everything goes well, the metadata of the
+      moved file is returned.
+      - [`None] means that the [from_path] does not exist.
+      - [`Invalid] is returned when there is already a file at the
+        given destination, or one tries to move a shared folder
+        into a shared folder.
+      - [`Too_many_files] is returned when too many files would be
+        involved in the operation for it to complete successfully.  The
+        limit is currently 10,000 files and folders.
 
       @param root The root relative to which from_path and to_path are
-      specified. Valid values are `Auto (default), `Sandbox, and `Dropbox.
-
-      @param from_path Specifies the file or folder to be moved from relative
-      to root.
-
-      @param to_path Specifies the destination path, including the new name
-      for the file or folder, relative to root.
+      specified.
 
       @param locale Specify language settings for user error messages
       and other language specific text.  See
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
-      documentation} for more information about supported locales.
-
-      Possible errors:
-      Invalid_oauth An invalid move operation was attempted (e.g. there
-      is already a file at the given destination, or moving a shared folder
-      into a shared folder).
-
-      Not_acceptable Too many files would be involved in the operation for
-      it to complete successfully. The limit is currently 10,000 files and
-      folders.*)
+      documentation} for more information about supported locales. *)
   end
 end
 

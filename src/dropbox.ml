@@ -22,7 +22,6 @@ type error =
   | Quota_exceeded of error_description
   | Server_error of int * error_description
   | Not_modified of error_description
-  | Not_acceptable of error_description
   | Unsupported_media_type of error_description
 
 (* FIXME: Do we want to render the values as strings closer to OCaml? *)
@@ -48,8 +47,6 @@ let string_of_error = function
      sprintf "Server_error(%i, %s)" st (Json.string_of_error_description e)
   | Not_modified e ->
      "Not_modified " ^ Json.string_of_error_description e
-  | Not_acceptable e ->
-     "Not_acceptable " ^ Json.string_of_error_description e
   | Unsupported_media_type e ->
      "Unsupported_media_type " ^ Json.string_of_error_description e
 
@@ -84,7 +81,6 @@ let check_errors_k k ((rq, body) as r) =
            fail_error body (fun e -> Try_later(None, e)) )
   | `Insufficient_storage -> fail_error body (fun e -> Quota_exceeded e)
   | `Not_modified -> fail_error body (fun e -> Not_modified e)
-  | `Not_acceptable -> fail_error body (fun e -> Not_acceptable e)
   | `Unsupported_media_type -> fail_error body
                                (fun e -> Unsupported_media_type e)
   | _ -> k r
@@ -343,14 +339,18 @@ module type S = sig
                          | `Too_many_files ] Lwt.t
 
     val create_folder : t -> ?locale: string -> ?root: root
-                        -> string -> metadata option Lwt.t
+                        -> string -> [ `Some of metadata
+                                     | `Invalid of string ] Lwt.t
 
     val delete :
       t -> ?locale: string -> ?root: root ->
       string -> [ `Some of metadata | `None | `Too_many_files ] Lwt.t
 
     val move : t -> ?locale: string -> ?root: root -> string
-               -> string -> metadata option Lwt.t
+               -> string -> [ `Some of metadata
+                            | `None
+                            | `Invalid of string
+                            | `Too_many_files ] Lwt.t
   end
 end
 
@@ -810,7 +810,15 @@ module Make(Client: Cohttp_lwt.Client) = struct
         && s.[i+1] = 'A' && s.[i+2] = 'u' && s.[i+3] = 't' && s.[i+4] = 'h'
       with Not_found -> false
 
-    let metadata_of_response2 (_, body) =
+    let error_oauth_or_invalid body =
+      Cohttp_lwt_body.to_string body >>= fun body ->
+      let e = Json.error_description_of_string body in
+      if is_OAuth_substring e.error then
+        fail(Error(Invalid_oauth e))
+      else
+        return(`Invalid e.error)
+
+    let metadata_of_response (_, body) =
       Cohttp_lwt_body.to_string body >>= fun body ->
       return(`Some(Json.metadata_of_string body))
 
@@ -820,15 +828,9 @@ module Make(Client: Cohttp_lwt.Client) = struct
          have finer error reporting. *)
       match rq.Cohttp.Response.status with
       | `Not_found -> return `None
-      | `Forbidden ->
-         Cohttp_lwt_body.to_string body >>= fun body ->
-         let e = Json.error_description_of_string body in
-         if is_OAuth_substring e.error then
-           fail(Error(Invalid_oauth e))
-         else
-           return(`Invalid e.error)
+      | `Forbidden -> error_oauth_or_invalid body
       | `Not_acceptable -> return `Too_many_files
-      | _ -> check_errors r >>= metadata_of_response2
+      | _ -> check_errors r >>= metadata_of_response
 
     let copy t ?(locale="") ?(root=`Auto) source to_path =
       let q = [("to_path",[to_path])] in
@@ -847,6 +849,11 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let create_folder_uri =
       Uri.of_string("https://api.dropbox.com/1/fileops/create_folder")
 
+    let create_folder_response ((rq, body) as r) =
+      match rq.Cohttp.Response.status with
+      | `Forbidden -> error_oauth_or_invalid body
+      | _ -> check_errors r >>= metadata_of_response
+
     let create_folder t ?(locale="") ?(root=`Auto) path =
       let q = [("path",[path])] in
       let q = if locale <> "" then ("locale",[locale]) :: q else q in
@@ -856,7 +863,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
         | `Sandbox -> ("root",["sandbox"]) :: q in
       let u = Uri.with_query create_folder_uri q in
       Client.post ~headers:(headers t) u
-      >>= check_errors_404 metadata_of_response
+      >>= create_folder_response
 
     let delete_uri =
       Uri.of_string("https://api.dropbox.com/1/fileops/delete")
@@ -865,7 +872,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       match rq.Cohttp.Response.status with
       | `Not_found -> return `None
       | `Not_acceptable -> return `Too_many_files
-      | _ -> check_errors r >>= metadata_of_response2
+      | _ -> check_errors r >>= metadata_of_response
 
     let delete t ?(locale="") ?(root=`Auto) path =
       let q = [("path",[path])] in
@@ -880,6 +887,13 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
     let move_uri = Uri.of_string("https://api.dropbox.com/1/fileops/move")
 
+    let move_response ((rq, body) as r) =
+      match rq.Cohttp.Response.status with
+      | `Forbidden -> error_oauth_or_invalid body
+      | `Not_found -> return `None
+      | `Not_acceptable -> return `Too_many_files
+      | _ -> check_errors r >>= metadata_of_response
+
     let move t ?(locale="") ?(root=`Auto) from_path to_path =
       let q = [("from_path",[from_path]);("to_path",[to_path])] in
       let q = if locale <> "" then ("locale",[locale]) :: q else q in
@@ -889,6 +903,6 @@ module Make(Client: Cohttp_lwt.Client) = struct
         | `Sandbox -> ("root",["sandbox"]) :: q in
       let u = Uri.with_query move_uri q in
       Client.post ~headers:(headers t) u
-      >>= check_errors_404 metadata_of_response
+      >>= move_response
   end
 end

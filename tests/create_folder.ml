@@ -10,14 +10,17 @@ let string_to_root a = match a with
   | "sandbox" -> `Sandbox
   | _ -> invalid_arg "root must be auto, dropbox or sandbox"
 
+let create_folder t ?root path =
+  D.Fileops.create_folder t ?root path
+  >>= function
+  | `Some m -> Lwt_io.printlf "%s" (Dropbox_j.string_of_metadata m)
+  | `Invalid s -> Lwt_io.printlf "Invalid: %s" s
+
 let main t args =
   match args with
-  | [] -> Lwt_io.printlf "No file or folder specified"
-  | [path; root] -> D.Fileops.create_folder t ~root:(string_to_root root) path
-      >>= (function
-      | Some m -> Lwt_io.printlf "%s" (Dropbox_j.string_of_metadata m)
-      | None -> Lwt_io.printlf  "Should not happen")
-  | _ -> Lwt_io.printf "%s [path] <root>\n" Sys.argv.(0)
+  | [path] -> create_folder t path
+  | [path; root] -> create_folder t ~root:(string_to_root root) path
+  | _ -> Lwt_io.printlf "%s <path> [root]\n" Sys.argv.(0)
 
 let () =
   Common.run main
