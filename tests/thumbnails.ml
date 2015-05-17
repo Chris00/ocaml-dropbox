@@ -38,7 +38,7 @@ let download t ?(format="jpeg") ?(size="s") fn =
     return_unit in
   Lwt_stream.iter_s write stream >>= fun () ->
   Lwt_unix.close fd >>= fun () ->
-  Lwt_io.printlf "Wrote a thumbnail of %S\n%s" fname
+  Lwt_io.printlf "Wrote a thumbnail as %S\n%s" fname
                  (Dropbox_j.string_of_metadata metadata)
 
 let main t args =
@@ -47,7 +47,7 @@ let main t args =
   | [fn] -> download t fn
   | [fn; size] -> download t ~size fn
   | [fn; size; format] -> download t ~format ~size fn
-  | _ -> Lwt_io.printlf "%s [path] <size> <format>" Sys.argv.(0)
+  | _ -> Lwt_io.printlf "%s <path> [size] [format]" Sys.argv.(0)
 
 let () =
   Common.run main

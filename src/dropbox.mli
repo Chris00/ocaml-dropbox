@@ -35,7 +35,7 @@ type error =
   | Not_acceptable of error_description
   (** There are too many file entries to return. *)
   | Unsupported_media_type of error_description
-  (**  The image is invalid and cannot be converted to a thumbnail. *)
+  (** The image is invalid and cannot be converted to a thumbnail. *)
 
 val string_of_error : error -> string
 
@@ -824,20 +824,24 @@ module type S = sig
   val thumbnails : t -> ?format: [ `Jpeg | `Png | `Bmp ]
                    -> ?size: [ `Xs | `S | `M | `L | `Xl ] -> string ->
                    (metadata * string Lwt_stream.t) option Lwt.t
-  (** [thumbnails t path] return the metadata for the thumbnails and a
-      stream of its content. [None] indicates that the file does not exists.
+  (** [thumbnails t path] return the metadata for the thumbnails of
+      [path] and a stream of the content of the thumbnails.  [None]
+      indicates that the [path] does not exists or is not an image.
 
       Note that This method currently supports files with the following file
       extensions: .jpg, .jpeg, .png, .tiff, .tif, .gif, .bmp (it also work on
-      .avi, .mp4, .flv). And photos larger than 20MB in size won't be
+      .avi, .mp4, .flv).  And photos larger than 20MB in size won't be
       converted to a thumbnail.
 
       @param format [`Jpeg] (default) or [`Png]. For images that are photos,
       [`Jpeg] should be preferred, while [`Png] is better for screenshots
       and digital art. Support also [`Bmp].
 
-      @param size One of the following values (default: [`S]): [`Xs] (32x32),
-      [`S] (64x64), [`M] (128x128), [`L] (640x480), [`Xl] (1024x768). *)
+      @param size The size of the thumbnail (default: [`S]): [`Xs]
+      (32x32), [`S] (64x64), [`M] (128x128), [`L] (640x480), [`Xl]
+      (1024x768).  The image returned may be larger or smaller than
+      the size requested, depending on the size and aspect ratio of
+      the original image. *)
 
   module Fileops : sig
 

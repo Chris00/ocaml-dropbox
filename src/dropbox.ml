@@ -739,21 +739,19 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= fun body -> return(Json.metadata_of_string body)
 
   let thumbnails t ?(format=`Jpeg) ?(size=`S) fn =
-    let headers = headers t in
     let u = Uri.of_string
-      ("https://api-content.dropbox.com/1/thumbnails/auto/" ^ fn) in
-    let q = match size with
-      | `Xs -> [("size",["xs"])]
-      | `S -> [("size",["s"])]
-      | `M -> [("size",["m"])]
-      | `L -> [("size",["l"])]
-      | `Xl -> [("size",["xl"])] in
-    let q = match format with
-      | `Jpeg -> ("format",["jpeg"]) :: q
-      | `Png -> ("format",["png"]) :: q
-      | `Bmp -> ("format",["bmp"]) :: q in
-    let u = Uri.with_query u q in
-    Client.get ~headers u
+              ("https://api-content.dropbox.com/1/thumbnails/auto/" ^ fn) in
+    let q = ["size", [match size with
+                      | `Xs -> "xs"
+                      | `S -> "s"
+                      | `M -> "m"
+                      | `L -> "l"
+                      | `Xl -> "xl"] ] in
+    let q = ("format", [match format with
+                        | `Jpeg -> "jpeg"
+                        | `Png ->  "png"
+                        | `Bmp ->  "bmp"]) :: q in
+    Client.get ~headers:(headers t) (Uri.with_query u q)
     >>= check_errors_404 stream_of_file
 
   module Fileops = struct
