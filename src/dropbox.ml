@@ -334,20 +334,20 @@ module type S = sig
                  (string * string * string Lwt_stream.t) option Lwt.t
 
   module Fileops : sig
-    type root_fileops = [ `Auto | `Dropbox | `Sandbox ]
+    type root = [ `Auto | `Dropbox | `Sandbox ]
 
     type source = [ `From_path of string | `From_copy_ref of string ]
 
-    val copy : t -> ?locale: string -> ?root: root_fileops
+    val copy : t -> ?locale: string -> ?root: root
                -> source -> string -> metadata option Lwt.t
 
-    val create_folder : t -> ?locale: string -> ?root: root_fileops
+    val create_folder : t -> ?locale: string -> ?root: root
                         -> string -> metadata option Lwt.t
 
-    val delete : t -> ?locale: string -> ?root: root_fileops -> string ->
+    val delete : t -> ?locale: string -> ?root: root -> string ->
                  metadata option Lwt.t
 
-    val move : t -> ?locale: string -> ?root: root_fileops -> string
+    val move : t -> ?locale: string -> ?root: root -> string
                -> string -> metadata option Lwt.t
   end
 end
@@ -796,7 +796,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 stream_of_file_prev
 
   module Fileops = struct
-    type root_fileops = [ `Auto | `Dropbox | `Sandbox ]
+    type root = [ `Auto | `Dropbox | `Sandbox ]
 
     type source = [ `From_path of string | `From_copy_ref of string ]
 

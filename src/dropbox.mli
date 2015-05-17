@@ -859,7 +859,7 @@ module type S = sig
       the most recent revision. *)
 
   module Fileops : sig
-    type root_fileops = [ `Auto | `Dropbox | `Sandbox ]
+    type root = [ `Auto | `Dropbox | `Sandbox ]
 
     type source = [ `From_path of string | `From_copy_ref of string ]
     (** A polymorphic variant used in the function {! copy} with two values :
@@ -870,7 +870,7 @@ module type S = sig
         - `From_copy_ref : Specifies a [copy_ref] generated from a previous
                            {!copy_ref} call. *)
 
-    val copy : t -> ?locale: string -> ?root: root_fileops
+    val copy : t -> ?locale: string -> ?root: root ->
                -> source -> string -> metadata option Lwt.t
   (** [copy t source to_path] Return the metadata for the copy of
       the file or folder.
@@ -895,9 +895,9 @@ module type S = sig
       it to complete successfully. The limit is currently 10,000 files and
       folders. *)
 
-    val create_folder : t -> ?locale: string -> ?root: root_fileops
-                        -> string -> metadata option Lwt.t
-  (** [create_folder path root] return the metadata for the new folder.
+    val create_folder : t -> ?locale: string -> ?root: root ->
+                        string -> metadata option Lwt.t
+    (** [create_folder path root] return the metadata for the new folder.
 
       @param root The root relative to which path is specified. Valid values
       are `Auto (default), `Sandbox, and `Dropbox.
@@ -912,9 +912,10 @@ module type S = sig
       Possible error:
       Invalid_oauth There is already a folder at the given destination. *)
 
-    val delete : t -> ?locale: string -> ?root: root_fileops -> string ->
-                 metadata option Lwt.t
-  (** [delete path root] Return the metadata for the deleted file or folder.
+    val delete : t -> ?locale: string -> ?root: root ->
+                 string -> metadata option Lwt.t
+    (** [delete path] delte the file or folder [path] and return the
+      metadata of it.
 
       @param root The root relative to which path is specified. Valid values
       are `Auto (default), `Sandbox, and `Dropbox.
@@ -931,9 +932,10 @@ module type S = sig
       it to complete successfully. The limit is currently 10,000 files and
       folders. *)
 
-    val move : t -> ?locale: string -> ?root: root_fileops -> string
-               -> string -> metadata option Lwt.t
-  (** [move from_path to_path root] Return the metadata for the moved file or
+    val move : t -> ?locale: string -> ?root: root ->
+               string -> string -> metadata option Lwt.t
+    (** [move from_path to_path root] move the file or folder
+      [from_path] and return the metadata for the moved file or
       folder.
 
       @param root The root relative to which from_path and to_path are
