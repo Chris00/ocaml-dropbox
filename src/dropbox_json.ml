@@ -6,6 +6,22 @@ let float_of_json = function
   | `Float f -> f
   | `Int i -> float i
 
+module Root = struct
+  type t = [
+    | `Dropbox
+    | `App_folder
+    ]
+
+  let wrap : Yojson.Safe.json -> t = function
+    | `String "dropbox" -> `Dropbox
+    | `String "app_folder" -> `App_folder
+    | _ -> Yojson.json_error "Root of metadata is not a string"
+
+  let unwrap : t -> Yojson.Safe.json = function
+    | `Dropbox -> `String "dropbox"
+    | `App_folder -> `String "app_folder"
+end
+
 module Photo = struct
     type info = { time_taken: Date.t option;
                   lat_long: (float * float) option }

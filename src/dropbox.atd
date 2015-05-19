@@ -36,13 +36,10 @@ type date = string wrap
                    wrap="Dropbox_date.of_string"
                    unwrap="Dropbox_date.to_string" >
 
-type metadata_root = [
-  | Dropbox     <json name="dropbox">
-  | App_folder  <json name="app_folder">
-  ]
-
 
 type json <ocaml module="Yojson.Safe"> = abstract (* "Raw" JSON. *)
+
+type root = json wrap <ocaml module="Dropbox_json.Root">
 
 type photo_info_variant = json wrap <ocaml module="Dropbox_json.Photo">
 type video_info_variant = json wrap <ocaml module="Dropbox_json.Video">
@@ -85,7 +82,7 @@ type metadata = { size: string;
                   icon: string;
                   ?modified: date option;
                   ?client_mtime: date option;
-                  root: metadata_root;
+                  root: root;
                   ~contents: metadata list;
                   ?shared_folder: shared_folder option;
                   ~read_only: bool;
