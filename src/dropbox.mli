@@ -21,7 +21,7 @@ type error =
   (** Your app is making too many requests and is being rate limited.
       [Too_many_requests] can trigger on a per-app or per-user
       basis. *)
-  | Try_later of int option * error_description
+  | Try_later of float option * error_description
   (** [Try_later(sec, e)] If [sec = Some s], this means your app is
       being rate limited and you must retry after [s] seconds.
       Otherwise, this indicates a transient server error, and your app
