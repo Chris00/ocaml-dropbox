@@ -8,7 +8,8 @@ DISTFILES = _oasis _opam setup.ml _tags \
 
 ATDGEN = src/dropbox_j.ml src/dropbox_j.mli src/dropbox_t.ml src/dropbox_t.mli
 
-.PHONY: configure all byte native doc install uninstall reinstall
+default: all opam/opam
+
 all byte native setup.log: setup.data
 	ocaml setup.ml -build
 
@@ -27,6 +28,9 @@ $(ATDGEN): src/dropbox.atd
 doc install uninstall reinstall: setup.log
 	ocaml setup.ml -$@
 
+opam/opam: _oasis
+	oasis2opam --local -y
+
 .PHONY: dist tar
 dist tar: setup.ml
 	mkdir -p $(DIR)
@@ -40,7 +44,6 @@ dist tar: setup.ml
 
 
 
-.PHONY: clean distclean
 clean:
 	ocaml setup.ml -clean
 	$(RM) $(ATDGEN) $(PKG_TARBALL)
@@ -48,3 +51,6 @@ clean:
 distclean:: clean
 	ocaml setup.ml -distclean
 	$(RM) $(wildcard *.ba[0-9] *.bak *~ *.odocl)
+
+.PHONY: configure all byte native doc install uninstall reinstall \
+	clean distclean
