@@ -17,7 +17,7 @@ Library "dropbox"
   Path:    src
   Modules: Dropbox, Dropbox_date, Dropbox_t
   InternalModules: Dropbox_j, Dropbox_json
-  BuildDepends: bytes, cohttp.lwt-core, lwt, atdgen
+  BuildDepends: bytes, cohttp.lwt-core, lwt, atdgen (>= 1.5.0)
 
 Library "dropbox_lwt_unix"
   Path:          src
