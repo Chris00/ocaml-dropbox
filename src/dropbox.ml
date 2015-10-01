@@ -18,7 +18,7 @@ type error =
   | Invalid_oauth of error_description
   | Conflict of error_description
   | Too_many_requests of error_description
-  | Try_later of int option * error_description
+  | Try_later of float option * error_description
   | Quota_exceeded of error_description
   | Server_error of int * error_description
   | Not_modified of error_description
@@ -40,7 +40,7 @@ let string_of_error = function
      (match sec with
       | None -> "Try_later " ^ Json.string_of_error_description e
       | Some s ->
-         sprintf "Try_later(%i, %s)" s (Json.string_of_error_description e))
+         sprintf "Try_later(%.2f, %s)" s (Json.string_of_error_description e))
   | Quota_exceeded e ->
      "Quota_exceeded " ^ Json.string_of_error_description e
   | Server_error (st, e) ->
@@ -70,12 +70,12 @@ let check_errors_k k ((rq, body) as r) =
   | `Conflict -> fail_error body (fun e -> Conflict e)
   | `Too_many_requests -> fail_error body (fun e -> Too_many_requests e)
   | `Service_unavailable ->
-     (match Cohttp.(Header.get rq.Response.headers "retry-after") with
+     (match Cohttp.(Header.get rq.Response.headers "Retry-After") with
       | None -> fail_error body (fun e -> Try_later(None, e))
       | Some retry ->
          try
            (* FIXME: [retry] can also be a date *)
-           let s = int_of_string retry in
+           let s = float_of_string retry in
            fail_error body (fun e -> Try_later(Some s, e))
          with _ ->
            fail_error body (fun e -> Try_later(None, e)) )

@@ -213,6 +213,14 @@ Executable "move"
   Install:      false
   CompiledObject: best
 
+Executable "test"
+  Build$:       flag(tests)
+  Path:         tests
+  MainIs:       test.ml
+  BuildDepends: dropbox.lwt, unix
+  Install:      false
+  CompiledObject: best
+
 
 Document API
   Title:           API reference for Dropbox
