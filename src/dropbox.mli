@@ -859,9 +859,7 @@ module type S = sig
 
   (** {2:fileops File Operations} *)
 
-  type root = [ `Auto | `Dropbox | `Sandbox ]
-
-  val copy : t -> ?locale: string -> ?root: root ->
+  val copy : t -> ?locale: string -> ?root: [ `Auto | `Dropbox | `Sandbox ] ->
              [ `From_path of string | `From_copy_ref of string ] ->
              string -> [ `Some of metadata
                        | `None | `Invalid of string
@@ -891,7 +889,8 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales.  *)
 
-  val create_folder : t -> ?locale: string -> ?root: root ->
+  val create_folder : t -> ?locale: string
+                      -> ?root: [ `Auto | `Dropbox | `Sandbox ] ->
                       string -> [ `Some of metadata
                                 | `Invalid of string ] Lwt.t
   (** [create_folder path] create the folder [path] (interpreted
@@ -907,7 +906,7 @@ module type S = sig
       documentation} for more information about supported locales. *)
 
   val delete :
-    t -> ?locale: string -> ?root: root ->
+    t -> ?locale: string -> ?root: [ `Auto | `Dropbox | `Sandbox ] ->
     string -> [ `Some of metadata | `None | `Too_many_files ] Lwt.t
   (** [delete path] delete the file or folder [path] and return the
       metadata of it.  Return [`None] if [path] does not exist and
@@ -925,7 +924,7 @@ module type S = sig
       {{:https://www.dropbox.com/developers/core/docs#param.locale}Dropbox
       documentation} for more information about supported locales. *)
 
-  val move : t -> ?locale: string -> ?root: root ->
+  val move : t -> ?locale: string -> ?root: [ `Auto | `Dropbox | `Sandbox ] ->
              string -> string -> [ `Some of metadata
                                  | `None
                                  | `Invalid of string

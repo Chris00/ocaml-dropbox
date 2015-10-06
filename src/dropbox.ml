@@ -329,24 +329,22 @@ module type S = sig
   val previews : t -> ?rev: string -> string ->
                  (string * string * string Lwt_stream.t) option Lwt.t
 
-
-  type root = [ `Auto | `Dropbox | `Sandbox ]
-
-  val copy : t -> ?locale: string -> ?root: root ->
+  val copy : t -> ?locale: string -> ?root: [ `Auto | `Dropbox | `Sandbox ] ->
              [ `From_path of string | `From_copy_ref of string ] ->
              string -> [ `Some of metadata
                        | `None | `Invalid of string
                        | `Too_many_files ] Lwt.t
 
-  val create_folder : t -> ?locale: string -> ?root: root ->
+  val create_folder : t -> ?locale: string
+                      -> ?root: [ `Auto | `Dropbox | `Sandbox ] ->
                       string -> [ `Some of metadata
                                    | `Invalid of string ] Lwt.t
 
   val delete :
-    t -> ?locale: string -> ?root: root ->
+    t -> ?locale: string -> ?root: [ `Auto | `Dropbox | `Sandbox ] ->
     string -> [ `Some of metadata | `None | `Too_many_files ] Lwt.t
 
-  val move : t -> ?locale: string -> ?root: root ->
+  val move : t -> ?locale: string -> ?root: [ `Auto | `Dropbox | `Sandbox ] ->
              string -> string -> [ `Some of metadata
                                  | `None
                                  | `Invalid of string
@@ -798,8 +796,6 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
 
   (* File operations *)
-
-  type root = [ `Auto | `Dropbox | `Sandbox ]
 
   let copy_uri =
     Uri.of_string("https://api.dropbox.com/1/fileops/copy")
