@@ -353,7 +353,7 @@ module type S = sig
                                  | `Too_many_files ] Lwt.t
 end
 
-module Make(Client: Cohttp_lwt.Client) = struct
+module Make(Client: Cohttp_lwt.S.Client) = struct
 
   module OAuth2 = struct
 

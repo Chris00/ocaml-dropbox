@@ -950,7 +950,7 @@ module type S = sig
       documentation} for more information about supported locales. *)
 end
 
-module Make(Client: Cohttp_lwt.Client) : S
+module Make(Client: Cohttp_lwt.S.Client) : S
 (** Create a concrete Dropbox API implementation given a client one.
     Note that several instances have been instantiated for you in the
     Dropbox_* modules so you generally do not have to call this
