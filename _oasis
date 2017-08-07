@@ -8,7 +8,8 @@ Description: Pure OCaml library to access Dropbox.  Lwt and Async backends
 Authors:     Christophe Troestler <Christophe.Troestler@umons.ac.be>
 Maintainers: Christophe Troestler <Christophe.Troestler@umons.ac.be>
 License:     LGPL-3.0 with OCaml linking exception
-Homepage:    https://github.com/Chris00/ocaml-docker
+Homepage:    https://github.com/Chris00/ocaml-dropbox
+BugReports:  https://github.com/Chris00/ocaml-dropbox/issues
 Plugins:     META (0.4), StdFiles (0.4)
 BuildTools:  ocamlbuild
 
@@ -222,7 +223,7 @@ Document API
   XOCamlbuildPath: src
   XOCamlbuildLibraries: dropbox, dropbox.lwt
 
-SourceRepository trunk
+SourceRepository master
   Type:       git
   Location:   https://github.com/Chris00/ocaml-dropbox.git
   Browser:    https://github.com/Chris00/ocaml-dropbox
