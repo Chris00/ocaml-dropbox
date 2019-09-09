@@ -1,0 +1,120 @@
+(library
+  (name db_ex_common)
+  (wrapped false)
+  (libraries dropbox.lwt lwt)
+  (modules common))
+
+(executable
+  (name info)
+  (modules info)
+  (libraries dropbox.lwt db_ex_common))
+
+(executable
+  (name get_file)
+  (modules get_file)
+  (libraries dropbox.lwt unix db_ex_common))
+
+(executable
+  (name metadata)
+  (modules metadata)
+  (libraries dropbox.lwt unix db_ex_common))
+
+(executable
+  (name delta)
+  (modules delta)
+  (libraries dropbox.lwt db_ex_common))
+
+(executable
+  (name latest_cursor)
+  (modules latest_cursor)
+  (libraries dropbox.lwt db_ex_common))
+
+(executable
+  (name longpoll_delta)
+  (modules longpoll_delta)
+  (libraries dropbox.lwt db_ex_common))
+
+(executable
+  (name revisions)
+  (modules revisions)
+  (libraries dropbox.lwt db_ex_common))
+
+(executable
+  (name restore)
+  (modules restore)
+  (libraries dropbox.lwt db_ex_common))
+
+(executable
+  (name search)
+  (modules search)
+  (libraries dropbox.lwt db_ex_common))
+
+(executable
+  (name copy_ref)
+  (modules copy_ref)
+  (libraries dropbox.lwt db_ex_common))
+
+(executable
+  (name shares)
+  (modules shares)
+  (libraries dropbox.lwt db_ex_common))
+
+(executable
+  (name media)
+  (modules media)
+  (libraries dropbox.lwt db_ex_common))
+
+(executable
+  (name shared_folders)
+  (modules shared_folders)
+  (libraries dropbox.lwt unix db_ex_common))
+
+(executable
+  (name files_put_stream)
+  (modules files_put_stream)
+  (libraries dropbox.lwt unix db_ex_common))
+
+(executable
+  (name files_put_cohttp_body)
+  (modules files_put_cohttp_body)
+  (libraries dropbox.lwt unix db_ex_common))
+
+(executable
+  (name chunked_upload)
+  (modules chunked_upload)
+  (libraries dropbox.lwt unix db_ex_common))
+
+(executable
+  (name thumbnails)
+  (modules thumbnails)
+  (libraries dropbox.lwt unix db_ex_common))
+
+(executable
+  (name previews)
+  (modules previews)
+  (libraries dropbox.lwt unix db_ex_common))
+
+(executable
+  (name copy_from_path)
+  (modules copy_from_path)
+  (libraries db_ex_common dropbox.lwt unix))
+
+(executable
+  (name copy_from_ref)
+  (modules copy_from_ref)
+  (libraries dropbox.lwt unix db_ex_common))
+
+(executable
+  (name delete)
+  (modules delete)
+  (libraries dropbox.lwt unix db_ex_common))
+
+(executable
+  (name create_folder)
+  (modules create_folder)
+  (libraries dropbox.lwt unix db_ex_common))
+
+(executable
+  (name move)
+  (modules move)
+  (libraries dropbox.lwt unix db_ex_common))

@@ -1,0 +1,12 @@
+(library
+  (name dropbox)
+  (public_name dropbox)
+  (wrapped false)
+  (modules dropbox dropbox_date dropbox_t dropbox_j dropbox_json)
+  (libraries bytes cohttp-lwt cohttp-lwt-unix lwt atdgen))
+
+(library
+  (name dropbox_lwt_unix)
+  (public_name dropbox.lwt)
+  (modules dropbox_lwt_unix)
+  (libraries dropbox cohttp-lwt cohttp-lwt-unix))

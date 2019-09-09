@@ -54,11 +54,11 @@ exception Error of error
 
 let () =
   Printexc.register_printer (function Error e -> Some(string_of_error e)
-                                    | exn -> None)
+                                    | _ -> None)
 
 
 let fail_error body f =
-  Cohttp_lwt_body.to_string body >>= fun body ->
+  Cohttp_lwt__Body.to_string body >>= fun body ->
   let e = Json.error_description_of_string body in
   fail(Error(f e))
 
@@ -353,7 +353,7 @@ module type S = sig
                                  | `Too_many_files ] Lwt.t
 end
 
-module Make(Client: Cohttp_lwt.Client) = struct
+module Make(Client: Cohttp_lwt.S.Client) = struct
 
   module OAuth2 = struct
 
@@ -414,7 +414,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
         | Some u -> ("redirect_uri", [Uri.to_string u]) :: q in
       Client.post (Uri.with_query token_uri q) >>=
       check_errors >>= fun (_, body) ->
-      Cohttp_lwt_body.to_string body >>= fun body ->
+      Cohttp_lwt__Body.to_string body >>= fun body ->
       return((Json.token_of_string body).Json.access_token)
   end
 
@@ -448,7 +448,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       | None -> info_uri
       | Some l -> Uri.with_query info_uri ["locale", [l]] in
     Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
-    Cohttp_lwt_body.to_string body >>= fun body ->
+    Cohttp_lwt__Body.to_string body >>= fun body ->
     return(Json.info_of_string body)
 
 
@@ -467,11 +467,11 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let stream_of_file =
     get_metadata (fun metadata body ->
-                  return(Some(metadata, Cohttp_lwt_body.to_stream body)))
+                  return(Some(metadata, Cohttp_lwt__Body.to_stream body)))
 
   let empty_stream =
     get_metadata (fun metadata body ->
-                  Cohttp_lwt_body.drain_body body >>= fun () ->
+                  Cohttp_lwt__Body.drain_body body >>= fun () ->
                   return(Some(metadata, Lwt_stream.of_list [])))
 
   let get_file t ?rev ?start ?len fn =
@@ -503,7 +503,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
                           else empty_stream)
 
   let metadata_of_response (_, body) =
-    Cohttp_lwt_body.to_string body
+    Cohttp_lwt__Body.to_string body
     >>= fun body -> return(Some(Json.metadata_of_string body))
 
   let metadata t ?(file_limit=10_000) ?(hash="") ?(list=true)
@@ -565,7 +565,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query delta_uri param in
     Client.post ~headers:(headers t) u
     >>= check_errors >>= fun (_, body) ->
-    Cohttp_lwt_body.to_string body >>= fun body ->
+    Cohttp_lwt__Body.to_string body >>= fun body ->
     let delta = Json.delta_json_of_string body in
     let cursor = { cursor = delta.Json.cursor;
                    path_prefix;
@@ -587,7 +587,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let u = Uri.with_query latest_cursor_uri param in
     Client.post ~headers:(headers t) u
     >>= check_errors >>= fun(_, body) ->
-    Cohttp_lwt_body.to_string body >>= fun body ->
+    Cohttp_lwt__Body.to_string body >>= fun body ->
     let c = Json.latest_cursor_of_string body in
     return({ cursor = c.Json.latest_cursor;
              path_prefix;
@@ -605,11 +605,11 @@ module Make(Client: Cohttp_lwt.Client) = struct
                  ("cursor", [c.cursor])] in
     let u = Uri.with_query longpoll_delta_uri param in
     Client.get ~headers:(headers t) u >>= check_errors
-    >>= fun(_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun(_, body) -> Cohttp_lwt__Body.to_string body
     >>= fun body -> return(Json.longpoll_delta_of_string body)
 
   let metadata_list_of_response (_, body) =
-    Cohttp_lwt_body.to_string body
+    Cohttp_lwt__Body.to_string body
     >>= fun body -> return(Some(Json.metadata_list_of_string body))
 
   let revisions t ?(rev_limit=10) ?(locale="") fn =
@@ -646,11 +646,11 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let q = if locale <> "" then ("locale",[locale]) :: q else q in
     let u = Uri.with_query u q in
     Client.get ~headers:(headers t) u >>= check_errors
-    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun (_, body) -> Cohttp_lwt__Body.to_string body
     >>= fun body -> return(Json.metadata_list_of_string body)
 
   let copy_ref_of_response (_, body) =
-    Cohttp_lwt_body.to_string body
+    Cohttp_lwt__Body.to_string body
     >>= fun body -> return(Some(Json.copy_ref_of_string body))
 
   let copy_ref t fn =
@@ -659,7 +659,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 copy_ref_of_response
 
   let shares_of_response (_, body) =
-    Cohttp_lwt_body.to_string body
+    Cohttp_lwt__Body.to_string body
     >>= fun body -> return(Some(Json.shared_link_of_string body))
 
   let shares t ?(locale="") ?(short_url=true) fn =
@@ -671,7 +671,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     >>= check_errors_404 shares_of_response
 
   let media_of_response (_, body) =
-    Cohttp_lwt_body.to_string body
+    Cohttp_lwt__Body.to_string body
     >>= fun body -> return(Some(Json.link_of_string body))
 
   let media t ?(locale="") fn =
@@ -691,7 +691,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let q = ["include_membership", [string_of_bool include_membership]] in
     Client.get ~headers:(headers t) (Uri.with_query u q)
     >>= check_errors
-    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun (_, body) -> Cohttp_lwt__Body.to_string body
     >>= fun body -> match shared_folder_id with
     | "" -> return(Json.shared_folders_of_string body)
     | _ -> return [Json.shared_folder_of_string body]
@@ -719,12 +719,12 @@ module Make(Client: Cohttp_lwt.Client) = struct
          (* Although Content-Length is required, Dropbox seems to do
             fine without (except to verify that all bytes have been
             transmitted of course). *)
-         headers, Cohttp_lwt_body.of_stream stream
+         headers, Cohttp_lwt__Body.of_stream stream
       | `Stream_len (stream, len) ->
          (add_content_length headers len,
-          Cohttp_lwt_body.of_stream stream) in
+          Cohttp_lwt__Body.of_stream stream) in
     Client.put ~headers ~body (Uri.with_query u q)
-    >>= check_errors >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= check_errors >>= fun (_, body) -> Cohttp_lwt__Body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
 
   let chunked_upload_uri =
@@ -734,10 +734,10 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let q = if id <> "" then [("upload_id", [id])] else [] in
     let q = if ofs <> 0 then ("offset", [string_of_int ofs]) :: q else q in
     let u = Uri.with_query chunked_upload_uri q in
-    Client.put ~body:(chunked_data :> Cohttp_lwt_body.t)
+    Client.put ~body:(chunked_data :> Cohttp_lwt__Body.t)
                ~chunked:true ~headers:(headers t) u
     >>= check_errors >>= fun (_, body) ->
-    Cohttp_lwt_body.to_string body >>= fun body ->
+    Cohttp_lwt__Body.to_string body >>= fun body ->
     return(Json.chunked_upload_of_string body)
 
 
@@ -752,7 +752,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     let q = if parent_rev <> "" then ("parent_rev",[parent_rev]) :: q else q in
     let u = Uri.with_query u q in
     Client.post ~headers:(headers t) u >>= check_errors
-    >>= fun (_, body) -> Cohttp_lwt_body.to_string body
+    >>= fun (_, body) -> Cohttp_lwt__Body.to_string body
     >>= fun body -> return(Json.metadata_of_string body)
 
 
@@ -779,7 +779,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     match Header.get r.Response.headers "Content-Type",
           Header.get r.Response.headers "Original-Content-Length" with
     | Some content_type, Some content_length ->
-       let body_stream = Cohttp_lwt_body.to_stream body in
+       let body_stream = Cohttp_lwt__Body.to_stream body in
        return(Some(content_type, content_length, body_stream))
     | _ , _ ->
        (* Should not happen *)
@@ -812,7 +812,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
     with Not_found -> false
 
   let error_oauth_or_invalid body =
-    Cohttp_lwt_body.to_string body >>= fun body ->
+    Cohttp_lwt__Body.to_string body >>= fun body ->
     let e = Json.error_description_of_string body in
     if is_OAuth_substring e.error then
       fail(Error(Invalid_oauth e))
@@ -820,7 +820,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       return(`Invalid e.error)
 
   let metadata_of_response (_, body) =
-    Cohttp_lwt_body.to_string body >>= fun body ->
+    Cohttp_lwt__Body.to_string body >>= fun body ->
     return(`Some(Json.metadata_of_string body))
 
   let copy_response ((rq, body) as r) =

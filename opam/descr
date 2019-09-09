@@ -1,5 +1,0 @@
-Binding to the Dropbox Remote API
-Pure OCaml library to access Dropbox. Lwt and Async backends are
-supported. In particular, this library can be used from a mirage
-unikernel.
-

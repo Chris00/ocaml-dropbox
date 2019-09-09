@@ -6,3 +6,5 @@ _build/
 setup.*
 run.conf
 API.docdir
+*.install
+*.merlin

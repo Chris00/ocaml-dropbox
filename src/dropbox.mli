@@ -52,13 +52,26 @@ module Date : sig
     = Dropbox_date.month
     = Jan | Feb | Mar | Apr | May | Jun | Jul | Aug | Sep | Oct | Nov | Dec
 
-  val day : t -> int      (** Day of the month (1-31). *)
-  val month : t -> month  (** Month *)
-  val year : t -> int     (** 4 digits year *)
-  val hour : t -> int     (** Hour *)
-  val min : t -> int      (** Minutes *)
-  val sec : t -> int      (** Seconds *)
-  val wday : t -> wday    (** Day of week *)
+  (** Day of the month (1-31). *)
+  val day : t -> int
+
+  (** Month *)
+  val month : t -> month
+
+  (** 4 digits year *)
+  val year : t -> int
+
+  (** Hour *)
+  val hour : t -> int
+
+  (** Minutes *)
+  val min : t -> int
+
+  (** Seconds *)
+  val sec : t -> int
+
+  (** Day of week *)
+  val wday : t -> wday
 
   val to_string : t -> string
 end
@@ -950,7 +963,7 @@ module type S = sig
       documentation} for more information about supported locales. *)
 end
 
-module Make(Client: Cohttp_lwt.Client) : S
+module Make(Client: Cohttp_lwt.S.Client) : S
 (** Create a concrete Dropbox API implementation given a client one.
     Note that several instances have been instantiated for you in the
     Dropbox_* modules so you generally do not have to call this

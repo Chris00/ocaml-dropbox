@@ -1,7 +1,7 @@
 open Lwt
 module D = Dropbox_lwt_unix
 
-let main t args =
+let main t _ =
   D.info t >>= fun info ->
   let open Lwt_io in
   printlf "Name: %s (uid: %i)\n\

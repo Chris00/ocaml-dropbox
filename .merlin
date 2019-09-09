@@ -1,8 +1,0 @@
-S src
-S tests
-
-B _build/src
-B _build/tests
-
-PKG bytes cohttp.lwt-core lwt
-PKG atdgen
