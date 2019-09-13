@@ -17,6 +17,15 @@ Use [OPAM][]:
 
 [OPAM]: https://opam.ocaml.org/
 
+Documentation
+-------------
+
+The documentation is
+[online](http://chris00.github.io/ocaml-dropbox/doc/) and in the
+interface files [dropbox.mli](src/dropbox.mli) and
+[dropbox_lwt_unix.mli](src/dropbox_lwt_unix.mli).
+
+
 Test this library
 -----------------
 
