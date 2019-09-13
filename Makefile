@@ -1,56 +1,20 @@
-PKG_NAME = $(shell oasis query name)
-DIR = $(PKG_NAME)-$(shell oasis query version)
-PKG_TARBALL = $(DIR).tar.gz
+PKGVERSION = $(shell git describe --always)
 
-DISTFILES = _oasis _opam setup.ml _tags \
-  $(wildcard $(addprefix src/, *.ml *.mli *.atd))
+build:
+	dune build @install @tests
 
+test:
+	dune runtest --force
 
-ATDGEN = src/dropbox_j.ml src/dropbox_j.mli src/dropbox_t.ml src/dropbox_t.mli
+install uninstall:
+	dune $@
 
-default: all opam/opam
-
-all byte native setup.log: setup.data
-	ocaml setup.ml -build
-
-configure: setup.data
-setup.data: setup.ml
-	ocaml setup.ml -configure --enable-tests --enable-docs
-
-setup.ml: _oasis $(ATDGEN)
-	oasis setup -setup-update dynamic
-	touch $@
-
-$(ATDGEN): src/dropbox.atd
-	atdgen -j $<
-	atdgen -t $<
-
-doc install uninstall reinstall: setup.log
-	ocaml setup.ml -$@
-
-opam/opam: _oasis
-	oasis2opam --local -y
-
-.PHONY: dist tar
-dist tar: setup.ml
-	mkdir -p $(DIR)
-	for f in $(DISTFILES); do \
-	  cp -r --parents $$f $(DIR); \
-	done
-# Make a setup.ml independent of oasis:
-	cd $(DIR) && oasis setup
-	tar -zcvf $(PKG_TARBALL) $(DIR)
-	$(RM) -r $(DIR)
-
-
+doc:
+	dune build @doc
+	sed -e 's/%%VERSION%%/$(PKGVERSION)/' --in-place \
+	  _build/default/_doc/_html/dropbox/Dropbox/index.html
 
 clean:
-	ocaml setup.ml -clean
-	$(RM) $(ATDGEN) $(PKG_TARBALL)
+	dune clean
 
-distclean:: clean
-	ocaml setup.ml -distclean
-	$(RM) $(wildcard *.ba[0-9] *.bak *~ *.odocl)
-
-.PHONY: configure all byte native doc install uninstall reinstall \
-	clean distclean
+.PHONY: build test install uninstall doc clean

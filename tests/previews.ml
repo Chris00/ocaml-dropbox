@@ -4,7 +4,7 @@ module D = Dropbox_lwt_unix
 let download t fn =
   D.previews t fn >>= function
   | None -> Lwt_io.printlf "No file named %S." fn
-  | Some(c_t, c_l, stream) ->
+  | Some(c_t, _c_l, stream) ->
     let format = match c_t with
       | "application/pdf" -> ".pdf"
       | _ -> ".html" in

@@ -22,7 +22,7 @@ module Photo = struct
          lat_long := Some (float_of_json la, float_of_json lo)
       | _ -> ()
 
-    let wrap : Yojson.Safe.json -> t = function
+    let wrap : Yojson.Safe.t -> t = function
       | `String _ -> `Pending
       | `Assoc l ->
          let time_taken = ref None in
@@ -31,7 +31,7 @@ module Photo = struct
          `Some { time_taken = !time_taken;  lat_long = !lat_long }
       | _ -> `None
 
-    let unwrap : t -> Yojson.Safe.json = function
+    let unwrap : t -> Yojson.Safe.t = function
       | `None -> `Null
       | `Pending -> `String "pending"
       | `Some info ->
@@ -63,7 +63,7 @@ module Video = struct
          lat_long := Some (float_of_json la, float_of_json lo)
       | _ -> ()
 
-    let wrap : Yojson.Safe.json -> t = function
+    let wrap : Yojson.Safe.t -> t = function
       | `String _ -> `Pending
       | `Assoc l ->
          let time_taken = ref None in
@@ -75,7 +75,7 @@ module Video = struct
                  lat_long = !lat_long }
       | _ -> `None
 
-    let unwrap : t -> Yojson.Safe.json = function
+    let unwrap : t -> Yojson.Safe.t = function
       | `None -> `Null
       | `Pending -> `String "pending"
       | `Some info ->
@@ -101,7 +101,7 @@ module Visibility = struct
     | `Other of string
     ]
 
-  let wrap : Yojson.Safe.json -> t = function
+  let wrap : Yojson.Safe.t -> t = function
     | `String "PUBLIC" -> `Public
     | `String "TEAM_ONLY" -> `Team_only
     | `String "PASSWORD" -> `Password
@@ -110,7 +110,7 @@ module Visibility = struct
     | `String s -> `Other s
     | _ -> Yojson.json_error "Visibility of shared link is not a string"
 
-  let unwrap : t -> Yojson.Safe.json = function
+  let unwrap : t -> Yojson.Safe.t = function
     | `Public -> `String "PUBLIC"
     | `Team_only -> `String "TEAM_ONLY"
     | `Password -> `String "PASSWORD"

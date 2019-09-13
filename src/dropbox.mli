@@ -53,11 +53,17 @@ module Date : sig
     = Jan | Feb | Mar | Apr | May | Jun | Jul | Aug | Sep | Oct | Nov | Dec
 
   val day : t -> int      (** Day of the month (1-31). *)
+
   val month : t -> month  (** Month *)
+
   val year : t -> int     (** 4 digits year *)
+
   val hour : t -> int     (** Hour *)
+
   val min : t -> int      (** Minutes *)
+
   val sec : t -> int      (** Seconds *)
+
   val wday : t -> wday    (** Day of week *)
 
   val to_string : t -> string
