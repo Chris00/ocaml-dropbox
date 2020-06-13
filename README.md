@@ -1,10 +1,13 @@
 Binding to the Dropbox Remote API
 =================================
 
-This is a binding in pure OCaml to the [Dropbox Remote API][] using
+This is a binding in pure OCaml to the Dropbox Remote API using
 `Lwt`.  It is suitable to run in [mirage][].
+*Only version 1 (which is retired) is supported.*
+Please chime in if you would like to help to port this library to
+[Dropbox Remote API][] v2.
 
-[Dropbox Remote API]: https://www.dropbox.com/developers/core/docs
+[Dropbox Remote API]: https://www.dropbox.com/developers/documentation/http/overview
 [mirage]: http://openmirage.org/
 
 Install
